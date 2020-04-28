@@ -1,22 +1,22 @@
 
-library(stringi)
 library(dplyr)
 library(forcats)
 library(rvest)
+library(stringi)
 library(anytime)
+library(covid19us)
 library(ggplot2)
+library(ggeffects)
+library(ggcorrplot)
+library(choroplethr)
+library(choroplethrMaps)
 library(shiny)
 library(shinycssloaders)
 library(shinydashboard)
-library(effects)
-library(choroplethr)
-library(choroplethrMaps)
-library(corrplot)
-library(covid19us)
 
 options(stringsAsFactors = FALSE)
 
-theme_set(theme_minimal(base_size = 15) + theme(legend.position = "top"))
+theme_set(theme_bw(base_size = 15) + theme(legend.position = "top"))
 
 
 data("df_pop_state")
@@ -105,12 +105,33 @@ model_deaths_input <- all_county_data %>%
     )
 
 model_deaths_cor <- cor(model_deaths_input)
-model_deaths_cor_pmat <- cor.mtest(model_deaths_input)
+model_deaths_cor_pmat <- cor_pmat(model_deaths_input)
+
+model_deaths_cor_plot <- ggcorrplot(
+    model_deaths_cor,
+    p.mat = model_deaths_cor_pmat,
+    ggtheme = theme_bw(base_size = 15) + theme(legend.position = "top"),
+    title = "Correlations",
+    colors = c("darkred", "white", "darkblue"),
+    lab = TRUE,
+    lab_size = 5,
+    pch.cex = 10
+)
 
 model_deaths_aov <- aov(
     `Dead/100k` ~ .,
     data = model_deaths_input
 )
+
+model_deaths_effects <- ggeffect(model_deaths_aov)
+
+model_deaths_effects_plot <- plot(
+    model_deaths_effects,
+    facets = TRUE,
+    colors = "flat",
+    use.theme = FALSE,
+    show.x.title = FALSE
+) + ggtitle("Deaths / 100k people - Effects")
 
 
 ui <- dashboardPage(
@@ -201,7 +222,7 @@ ui <- dashboardPage(
             ),
             tabItem(
                 tabName = "us_combined_tab",
-                box(withSpinner(plotOutput("us_combined_chart", height = 800)), status = "primary", width = 12)
+                box(withSpinner(plotOutput("us_combined_chart", height = 768)), status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "us_charts_tab",
@@ -212,7 +233,7 @@ ui <- dashboardPage(
             ),
             tabItem(
                 tabName = "state_combined_tab",
-                box(withSpinner(plotOutput("state_combined_chart", height = 800)), status = "primary", width = 12)
+                box(withSpinner(plotOutput("state_combined_chart", height = 768)), status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "state_charts_tab",
@@ -230,11 +251,11 @@ ui <- dashboardPage(
             ),
             tabItem(
                 tabName = "state_rt_tab",
-                box(withSpinner(plotOutput("state_rt_chart", height = 800)), status = "primary", width = 12)
+                box(withSpinner(plotOutput("state_rt_chart", height = 768)), status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "stayhome_tab",
-                box(withSpinner(plotOutput("stayhome_chart", height = 800)), status = "primary", width = 12)
+                box(withSpinner(plotOutput("stayhome_chart", height = 768)), status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "state_percent_tab",
@@ -263,9 +284,8 @@ ui <- dashboardPage(
             ),
             tabItem(
                 tabName = "county_aov_tab",
-                box(withSpinner(plotOutput("county_aov_effects", height = 800)), status = "primary"),
-                box(withSpinner(plotOutput("county_cor_plot")), status = "primary", title = "Correlations", solidHeader = TRUE),
-                box(verbatimTextOutput("text_aov_summary"), status = "primary", title = "Analysis of Variance", solidHeader = TRUE)
+                box(withSpinner(plotOutput("county_aov_effects", height = 768)), status = "primary"),
+                box(withSpinner(plotOutput("county_cor_plot", height = 768)), status = "primary")
             )
         )
     )
@@ -744,20 +764,12 @@ server <- function(input, output, session) {
     }, striped = TRUE)
     
     output$county_aov_effects <- renderPlot({
-        plot(allEffects(model_deaths_aov), rotx = 90)
+        model_deaths_effects_plot
     })
     
     output$county_cor_plot <- renderPlot({
-        corrplot.mixed(
-            corr = model_deaths_cor,
-            p.mat = model_deaths_cor_pmat$p
-        )
+        model_deaths_cor_plot
     })
-    
-    output$text_aov_summary <- renderPrint({
-        summary(model_deaths_aov)
-    })
-    
 }
 
 shinyApp(ui = ui, server = server)
