@@ -6,6 +6,7 @@ library(rvest)
 library(anytime)
 library(ggplot2)
 library(shiny)
+library(shinycssloaders)
 library(shinydashboard)
 library(effects)
 library(choroplethr)
@@ -15,7 +16,7 @@ library(covid19us)
 
 options(stringsAsFactors = FALSE)
 
-theme_set(theme_grey(base_size = 14) + theme(legend.position = "top"))
+theme_set(theme_minimal(base_size = 15) + theme(legend.position = "top"))
 
 
 data("df_pop_state")
@@ -200,69 +201,70 @@ ui <- dashboardPage(
             ),
             tabItem(
                 tabName = "us_combined_tab",
-                box(plotOutput("us_combined_chart", height = 800), status = "primary", width = 12)
+                box(withSpinner(plotOutput("us_combined_chart", height = 800)), status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "us_charts_tab",
-                box(plotOutput("us_tests_chart"), status = "primary"),
-                box(plotOutput("us_cases_chart"), status = "warning"),
-                box(plotOutput("us_deaths_chart"), status = "danger"),
-                box(plotOutput("us_recovered_chart"), status = "success")
+                box(withSpinner(plotOutput("us_tests_chart")), status = "primary"),
+                box(withSpinner(plotOutput("us_cases_chart")), status = "warning"),
+                box(withSpinner(plotOutput("us_hosp_chart")), status = "warning"),
+                box(withSpinner(plotOutput("us_deaths_chart")), status = "danger")
             ),
             tabItem(
                 tabName = "state_combined_tab",
-                box(plotOutput("state_combined_chart", height = 800), status = "primary", width = 12)
+                box(withSpinner(plotOutput("state_combined_chart", height = 800)), status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "state_charts_tab",
-                box(plotOutput("state_tests_chart"), status = "primary"),
-                box(plotOutput("state_cases_chart"), status = "warning"),
-                box(plotOutput("state_deaths_chart"), status = "danger"),
-                box(plotOutput("state_recovered_chart"), status = "success")
+                box(withSpinner(plotOutput("state_tests_chart")), status = "primary"),
+                box(withSpinner(plotOutput("state_cases_chart")), status = "warning"),
+                box(withSpinner(plotOutput("state_hosp_chart")), status = "warning"),
+                box(withSpinner(plotOutput("state_deaths_chart")), status = "danger")
             ),
             tabItem(
                 tabName = "state_capcharts_tab",
-                box(plotOutput("state_tests_capchart"), status = "primary"),
-                box(plotOutput("state_cases_capchart"), status = "warning"),
-                box(plotOutput("state_deaths_capchart"), status = "danger")
+                box(withSpinner(plotOutput("state_tests_capchart")), status = "primary"),
+                box(withSpinner(plotOutput("state_cases_capchart")), status = "warning"),
+                box(withSpinner(plotOutput("state_hosp_capchart")), status = "warning"),
+                box(withSpinner(plotOutput("state_deaths_capchart")), status = "danger")
             ),
             tabItem(
                 tabName = "state_rt_tab",
-                box(plotOutput("state_rt_chart", height = 800), status = "primary", width = 12)
+                box(withSpinner(plotOutput("state_rt_chart", height = 800)), status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "stayhome_tab",
-                box(plotOutput("stayhome_chart", height = 800), status = "primary", width = 12)
+                box(withSpinner(plotOutput("stayhome_chart", height = 800)), status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "state_percent_tab",
-                box(plotOutput("percent_tests_map"), status = "primary"),
-                box(plotOutput("pos_tests_map"), status = "warning"),
-                box(plotOutput("cap_deaths_cases_map"), status = "danger"),
+                box(withSpinner(plotOutput("percent_tests_map")), status = "primary"),
+                box(withSpinner(plotOutput("pos_tests_map")), status = "warning"),
+                box(withSpinner(plotOutput("cap_deaths_cases_map")), status = "danger"),
                 box(tableOutput("percent_states_top10_table"), status = "danger", title = "Top 10 States by Mortality Rate", solidHeader = TRUE)
             ),
             tabItem(
                 tabName = "state_capita_tab",
-                box(plotOutput("cap_tests_map"), status = "primary"),
-                box(plotOutput("cap_cases_map"), status = "warning"),
-                box(plotOutput("cap_deaths_map"), status = "danger"),
+                box(withSpinner(plotOutput("cap_tests_map")), status = "primary"),
+                box(withSpinner(plotOutput("cap_cases_map")), status = "warning"),
+                box(withSpinner(plotOutput("cap_deaths_map")), status = "danger"),
                 box(tableOutput("cap_states_top10_table"), status = "danger", title = "Top 10 States by Deaths / 100k people", solidHeader = TRUE)
             ),
             tabItem(
                 tabName = "county_capita_tab",
-                box(plotOutput("cty_cases_map"), status = "warning"),
-                box(plotOutput("cty_deaths_map"), status = "danger"),
+                box(withSpinner(plotOutput("cty_cases_map")), status = "warning"),
+                box(withSpinner(plotOutput("cty_deaths_map")), status = "danger"),
                 box(tableOutput("cty_cases_table"), status = "warning", title = "Top 10 Counties by Cases / 100k", solidHeader = TRUE),
                 box(tableOutput("cty_deaths_table"), status = "danger", title = "Top 10 Counties by Deaths / 100k", solidHeader = TRUE)
             ),
             tabItem(
                 tabName = "data_states_tab",
-                tableOutput("data_states")
+                box(tableOutput("data_states"), status = "primary", title = "State Data Table", solidHeader = TRUE, width = 12)
             ),
             tabItem(
                 tabName = "county_aov_tab",
-                box(plotOutput("county_aov_effects", height = 800), status = "primary"),
-                box(plotOutput("county_cor_plot"), status = "primary", title = "Correlations", solidHeader = TRUE),
+                box(withSpinner(plotOutput("county_aov_effects", height = 800)), status = "primary"),
+                box(withSpinner(plotOutput("county_cor_plot")), status = "primary", title = "Correlations", solidHeader = TRUE),
                 box(verbatimTextOutput("text_aov_summary"), status = "primary", title = "Analysis of Variance", solidHeader = TRUE)
             )
         )
@@ -305,6 +307,17 @@ server <- function(input, output, session) {
             labs(x = "Date", y = "Cases") +
             ggtitle("Daily National Cases")
     })
+
+    output$us_hosp_chart <- renderPlot({
+        us_daily %>%
+            ggplot(aes(x = date, y = hospitalized_currently)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_line() +
+            geom_smooth(se = input$inc_se) +
+            scale_y_continuous(labels = scales::comma) +
+            labs(x = "Date", y = "Currently Hospitalized") +
+            ggtitle("Daily National Currently Hospitalized")
+    })
     
     output$us_deaths_chart <- renderPlot({
         us_daily %>%
@@ -317,16 +330,6 @@ server <- function(input, output, session) {
             ggtitle("Daily National Deaths")
     })
 
-    output$us_recovered_chart <- renderPlot({
-        us_daily %>%
-            ggplot(aes(x = date, y = recovered)) +
-            geom_hline(yintercept = 0, color = "dimgray") +
-            geom_line() +
-            scale_y_continuous(labels = scales::comma) +
-            labs(x = "Date", y = "Recovered") +
-            ggtitle("Cumulative National Recovered")
-    })
-    
     output$state_combined_chart <- renderPlot({
         states_daily %>%
             filter(state %in% toupper(input$statepicker)) %>%
@@ -377,6 +380,24 @@ server <- function(input, output, session) {
             ggtitle("Daily State Cases")
     })
     
+    output$state_hosp_chart <- renderPlot({
+        states_daily %>%
+            filter(state %in% toupper(input$statepicker)) %>%
+            ggplot(aes(x = date, y = hospitalized_currently, color = state)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_vline(
+                data = stayhometable %>%
+                    filter(StateCode %in% toupper(input$statepicker)),
+                aes(xintercept = `Effective Date`, color = StateCode)
+            ) +
+            geom_line() +
+            geom_smooth(se = input$inc_se) +
+            scale_y_continuous(labels = scales::comma) +
+            scale_color_brewer(palette = "Set1") +
+            labs(x = "Date", y = "Currently Hospitalized", color = "State") +
+            ggtitle("Daily State Currently Hospitalized")
+    })
+    
     output$state_deaths_chart <- renderPlot({
         states_daily %>%
             filter(state %in% toupper(input$statepicker)) %>%
@@ -393,18 +414,6 @@ server <- function(input, output, session) {
             scale_color_brewer(palette = "Set1") +
             labs(x = "Date", y = "Deaths", color = "State") +
             ggtitle("Daily State Deaths")
-    })
-
-    output$state_recovered_chart <- renderPlot({
-        states_daily %>%
-            filter(state %in% toupper(input$statepicker)) %>%
-            ggplot(aes(x = date, y = recovered, color = state)) +
-            geom_hline(yintercept = 0, color = "dimgray") +
-            geom_line() +
-            scale_y_continuous(labels = scales::comma) +
-            scale_color_brewer(palette = "Set1") +
-            labs(x = "Date", y = "Recovered", color = "State") +
-            ggtitle("Cumulative State Recovered")
     })
 
     output$state_tests_capchart <- renderPlot({
@@ -443,6 +452,25 @@ server <- function(input, output, session) {
             scale_color_brewer(palette = "Set1") +
             labs(x = "Date", y = "Cases / 100k", color = "State") +
             ggtitle("Daily State Cases  / 100k people")
+    })
+
+    output$state_hosp_capchart <- renderPlot({
+        states_daily %>%
+            filter(state %in% toupper(input$statepicker)) %>%
+            inner_join(df_pop_state2) %>%
+            ggplot(aes(x = date, y = 100000 * hospitalized_currently / pop, color = state)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_vline(
+                data = stayhometable %>%
+                    filter(StateCode %in% toupper(input$statepicker)),
+                aes(xintercept = `Effective Date`, color = StateCode)
+            ) +
+            geom_line() +
+            geom_smooth(se = input$inc_se) +
+            scale_y_continuous(labels = scales::comma) +
+            scale_color_brewer(palette = "Set1") +
+            labs(x = "Date", y = "Currently Hospitalized / 100k", color = "State") +
+            ggtitle("Daily State Currently Hospitalized  / 100k people")
     })
     
     output$state_deaths_capchart <- renderPlot({
