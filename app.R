@@ -119,7 +119,7 @@ model_deaths_cor_pmat <- cor_pmat(model_deaths_input)
 model_deaths_cor_plot <- ggcorrplot(
     model_deaths_cor,
     p.mat = model_deaths_cor_pmat,
-    title = "Correlations",
+    title = "Demographic Correlations",
     colors = c("darkred", "white", "darkblue"),
     lab = TRUE
 )
@@ -136,7 +136,7 @@ model_deaths_effects_plot <- plot(
     facets = TRUE,
     colors = "flat",
     show.x.title = FALSE
-) + ggtitle("Deaths / 100k people - Effects")
+) + ggtitle("Deaths / 100k people - Analysis of Variance - Effects")
 
 
 ui <- dashboardPage(
@@ -145,8 +145,7 @@ ui <- dashboardPage(
     sidebar = dashboardSidebar(
         sidebarMenu(
             menuItem(text = "About", tabName = "about_tab"),
-            menuItem(text = "Cumulative National Counts", tabName = "us_combined_tab"),
-            menuItem(text = "Cumulative State Counts", tabName = "state_combined_tab"),
+            menuItem(text = "Cumulative Counts", tabName = "us_combined_tab"),
             menuItem(text = "Daily National Counts", tabName = "us_charts_tab"),
             menuItem(text = "Daily State Counts", tabName = "state_charts_tab"),
             menuItem(text = "Daily State Counts / 100k", tabName = "state_capcharts_tab"),
@@ -228,7 +227,8 @@ ui <- dashboardPage(
             ),
             tabItem(
                 tabName = "us_combined_tab",
-                box(withSpinner(plotOutput("us_combined_chart", height = 768)), status = "primary", width = 12)
+                box(withSpinner(plotOutput("us_combined_chart", height = 768)), status = "primary"),
+                box(withSpinner(plotOutput("state_combined_chart", height = 768)), status = "primary")
             ),
             tabItem(
                 tabName = "us_charts_tab",
@@ -236,10 +236,6 @@ ui <- dashboardPage(
                 box(withSpinner(plotOutput("us_cases_chart")), status = "warning"),
                 box(withSpinner(plotOutput("us_hosp_chart")), status = "warning"),
                 box(withSpinner(plotOutput("us_deaths_chart")), status = "danger")
-            ),
-            tabItem(
-                tabName = "state_combined_tab",
-                box(withSpinner(plotOutput("state_combined_chart", height = 768)), status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "state_charts_tab",
@@ -257,11 +253,13 @@ ui <- dashboardPage(
             ),
             tabItem(
                 tabName = "state_rt_tab",
-                box(withSpinner(plotOutput("state_rt_chart", height = 768)), status = "primary", width = 12)
+                box(withSpinner(plotOutput("state_rt_chart", height = 768)), status = "primary"),
+                box(withSpinner(plotOutput("state_rtcases_chart", height = 768)), status = "primary"),
+                box(strong("Rt = Average number of people who become infected by an infectious person. Rt > 1 = the virus will spread quickly, Rt < 1 = the virus will stop spreading. Vertical lines are Stay Home Orders. Data on this page is sourced from https://rt.live"), status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "stayhome_tab",
-                box(withSpinner(plotOutput("stayhome_chart", height = 768)), status = "primary", width = 12)
+                box(withSpinner(plotOutput("stayhome_chart", height = 768)), status = "primary")
             ),
             tabItem(
                 tabName = "state_percent_tab",
@@ -528,20 +526,36 @@ server <- function(input, output, session) {
     
     output$state_rt_chart <- renderPlot({
         rt_data %>%
-            filter(region %in% toupper(input$statepicker)) %>%
-            ggplot(aes(x = as.Date(date), y = mean, color = region)) +
+            ggplot(aes(x = as.Date(date), y = mean, group = region, color = ifelse(region %in% toupper(input$statepicker), region, "*Other"))) +
             geom_hline(yintercept = 1, color = "dimgray") +
             geom_vline(
                 data = stayhometable %>%
                     filter(StateCode %in% toupper(input$statepicker)),
                 aes(xintercept = `Effective Date`, color = StateCode)
             ) +
-            geom_line(size = 1) +
+            geom_line(aes(alpha = ifelse(region %in% toupper(input$statepicker), 1, 0)), size = 1) +
             scale_color_brewer(palette = "Set1") +
-            labs(x = "Date", y = "Rt", color = "State", linetype = "Aggregation") +
-            ggtitle("Daily State Rt", "Rt = Average number of people who become infected by an infectious person. Rt > 1 = the virus will spread quickly, Rt < 1 = the virus will stop spreading.")
+            scale_alpha(guide = "none") +
+            labs(x = "Date", y = "Rt", color = "State") +
+            ggtitle("Daily State Rt")
     })
-
+    
+    output$state_rtcases_chart <- renderPlot({
+        rt_data %>%
+            ggplot(aes(x = as.Date(date), y = new_cases, group = region, color = ifelse(region %in% toupper(input$statepicker), region, "*Other"))) +
+            geom_vline(
+                data = stayhometable %>%
+                    filter(StateCode %in% toupper(input$statepicker)),
+                aes(xintercept = `Effective Date`, color = StateCode)
+            ) +
+            geom_line(aes(alpha = ifelse(region %in% toupper(input$statepicker), 1, 0)), size = 1) +
+            scale_y_log10(labels = scales::comma) +
+            scale_color_brewer(palette = "Set1") +
+            scale_alpha(guide = "none") +
+            labs(x = "Date", y = "Cases", color = "State") +
+            ggtitle("Daily State New Cases")
+    })
+    
     output$stayhome_chart <- renderPlot({
         stayhometable %>%
             ggplot(aes(
