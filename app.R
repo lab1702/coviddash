@@ -16,11 +16,13 @@ library(shinydashboard)
 
 options(stringsAsFactors = FALSE)
 
-theme_set(theme_bw(base_size = 15) + theme(legend.position = "top"))
+theme_set(theme_grey(base_size = 15) + theme(legend.position = "top"))
 
 
 data("df_pop_state")
 data("df_county_demographics")
+
+us_current <- read_csv("https://covidtracking.com/api/v1/us/current.csv")
 
 us_daily <- read_csv("https://covidtracking.com/api/v1/us/daily.csv") %>%
     mutate(date = anydate(date))
@@ -117,12 +119,9 @@ model_deaths_cor_pmat <- cor_pmat(model_deaths_input)
 model_deaths_cor_plot <- ggcorrplot(
     model_deaths_cor,
     p.mat = model_deaths_cor_pmat,
-    ggtheme = theme_bw(base_size = 15) + theme(legend.position = "top"),
     title = "Correlations",
     colors = c("darkred", "white", "darkblue"),
-    lab = TRUE,
-    lab_size = 5,
-    pch.cex = 10
+    lab = TRUE
 )
 
 model_deaths_aov <- aov(
@@ -136,7 +135,6 @@ model_deaths_effects_plot <- plot(
     model_deaths_effects,
     facets = TRUE,
     colors = "flat",
-    use.theme = FALSE,
     show.x.title = FALSE
 ) + ggtitle("Deaths / 100k people - Effects")
 
@@ -159,7 +157,7 @@ ui <- dashboardPage(
             menuItem(text = "National County Map (#)", tabName = "county_natcapita_tab"),
             menuItem(text = "State County Maps (#)", tabName = "county_capita_tab"),
             menuItem(text = "Demographics", tabName = "county_aov_tab"),
-            menuItem(text = "State Data Table", tabName = "data_states_tab")
+            menuItem(text = "Data Tables", tabName = "data_tables_tab")
         ),
         hr(),
         selectInput(
@@ -299,7 +297,8 @@ ui <- dashboardPage(
                 box(withSpinner(plotOutput("county_cor_plot", height = 768)), status = "primary")
             ),
             tabItem(
-                tabName = "data_states_tab",
+                tabName = "data_tables_tab",
+                box(tableOutput("data_us"), status = "primary", title = "National Data Table", solidHeader = TRUE, width = 12),
                 box(tableOutput("data_states"), status = "primary", title = "State Data Table", solidHeader = TRUE, width = 12)
             )
         )
@@ -794,26 +793,28 @@ server <- function(input, output, session) {
             )
     }, striped = TRUE)
     
+    output$data_us <- renderTable({
+        us_current %>%
+            transmute(
+                Tests = scales::comma(totalTestResults),
+                Positive = scales::comma(positive),
+                Deaths = scales::comma(death),
+                Recovered = scales::comma(recovered),
+                Modified = lastModified
+            )
+    }, striped = TRUE)
+    
     output$data_states <- renderTable({
         states_current %>%
-            inner_join(states_info, by = "state") %>%
-            mutate(region = tolower(name)) %>%
-            inner_join(df_pop_state, by="region") %>%
             transmute(
-                State = region,
-                lastUpdateEt,
-                dataQualityGrade,
-                Population = scales::comma(value, accuracy = 1),
-                Tests = scales::comma(totalTestResults, accuracy = 1),
-                Negative = scales::comma(negative, accuracy = 1),
-                Positive = scales::comma(positive, accuracy = 1),
-                Deaths = scales::comma(death, accuracy = 1),
-                `% Tested` = scales::percent(totalTestResults / value, accuracy = 0.1),
-                `% Positive` = scales::percent(positive / totalTestResults, accuracy = 0.1),
-                Mortality = scales::percent(death / positive, accuracy = 0.1),
-                `Tests / 100k` = scales::comma(100000 * totalTestResults / value, accuracy = 1),
-                `Positive / 100k` = scales::comma(100000 * positive / value, accuracy = 1),
-                `Deaths / 100k` = scales::comma(100000 * death / value, accuracy = 1)
+                State = state,
+                Tests = scales::comma(totalTestResults),
+                Positive = scales::comma(positive),
+                Deaths = scales::comma(death),
+                Recovered = scales::comma(recovered),
+                Updated = lastUpdateEt,
+                Checked = checkTimeEt,
+                Quality = dataQualityGrade
             ) %>%
             arrange(State)
     }, striped = TRUE)
