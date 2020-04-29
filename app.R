@@ -1,10 +1,10 @@
 
 library(dplyr)
+library(readr)
 library(forcats)
 library(rvest)
 library(stringi)
 library(anytime)
-library(covid19us)
 library(ggplot2)
 library(ggeffects)
 library(ggcorrplot)
@@ -22,11 +22,12 @@ theme_set(theme_bw(base_size = 15) + theme(legend.position = "top"))
 data("df_pop_state")
 data("df_county_demographics")
 
-us_daily <- get_us_daily()
+us_daily <- read_csv("https://covidtracking.com/api/v1/us/daily.csv") %>%
+    mutate(date = anydate(date))
 
-states_info <- get_states_info()
+states_info <- read_csv("https://covidtracking.com/api/v1/states/info.csv")
 
-df_pop_state2 <- get_states_info() %>%
+df_pop_state2 <- states_info %>%
     inner_join(
         df_pop_state %>%
             mutate(name = stri_trans_totitle(region))
@@ -37,8 +38,10 @@ df_pop_state2 <- get_states_info() %>%
         pop = value
     )
 
-states_current <- get_states_current()
-states_daily <- get_states_daily()
+states_current <- read_csv("https://covidtracking.com/api/v1/states/current.csv")
+
+states_daily <- read_csv("https://covidtracking.com/api/v1/states/daily.csv") %>%
+    mutate(date = anydate(date))
 
 stayhomepage <- read_html("https://www.littler.com/publication-press/publication/stay-top-stay-home-list-statewide")
 stayhometable <- html_table(stayhomepage)[[1]]
@@ -65,9 +68,9 @@ stayhometable <- stayhometable %>%
             transmute(StateCode = state, State = name)
     )
 
-rt_data <- read.csv("https://d14wlfuexuxgcm.cloudfront.net/covid/rt.csv")
+rt_data <- read_csv("https://d14wlfuexuxgcm.cloudfront.net/covid/rt.csv")
 
-all_county_data <- read.csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>%
+all_county_data <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>%
     filter(!is.na(fips)) %>%
     mutate(region = as.numeric(fips)) %>%
     inner_join(df_county_demographics, by = "region") %>%
@@ -81,7 +84,9 @@ county_data_cases <- all_county_data %>%
         region = region,
         value = 100000 * cases / total_population,
         state = state,
-        county = county
+        county = county,
+        population = total_population,
+        cases = cases
     )
 
 county_data_deaths <- all_county_data %>%
@@ -89,7 +94,9 @@ county_data_deaths <- all_county_data %>%
         region = region,
         value = 100000 * deaths / total_population,
         state = state,
-        county = county
+        county = county,
+        population = total_population,
+        deaths = deaths
     )
 
 model_deaths_input <- all_county_data %>%
@@ -149,7 +156,8 @@ ui <- dashboardPage(
             menuItem(text = "Stay At Home Orders", tabName = "stayhome_tab"),
             menuItem(text = "State Maps (%)", tabName = "state_percent_tab"),
             menuItem(text = "State Maps (#)", tabName = "state_capita_tab"),
-            menuItem(text = "County Maps (#)", tabName = "county_capita_tab"),
+            menuItem(text = "National County Map (#)", tabName = "county_natcapita_tab"),
+            menuItem(text = "State County Maps (#)", tabName = "county_capita_tab"),
             menuItem(text = "Demographics", tabName = "county_aov_tab"),
             menuItem(text = "State Data Table", tabName = "data_states_tab")
         ),
@@ -178,7 +186,7 @@ ui <- dashboardPage(
                     solidHeader = TRUE
                 ),
                 box(
-                    "National and State data is downloaded using the API provided at https://covidtracking.com",
+                    "National and State data is downloaded from https://covidtracking.com/api",
                     title = "National and State Data Source",
                     status = "primary",
                     solidHeader = TRUE
@@ -190,7 +198,7 @@ ui <- dashboardPage(
                     solidHeader = TRUE
                 ),
                 box(
-                    "Rt data is downloaded from the CSV link provided at https://rt.live",
+                    "Rt data is downloaded from https://rt.live",
                     title = "Rt Data Source",
                     status = "primary",
                     solidHeader = TRUE
@@ -272,6 +280,13 @@ ui <- dashboardPage(
                 box(tableOutput("cap_states_top10_table"), status = "danger", title = "Top 10 States by Deaths / 100k people", solidHeader = TRUE)
             ),
             tabItem(
+                tabName = "county_natcapita_tab",
+                box(withSpinner(plotOutput("cty_natcases_map")), status = "warning"),
+                box(withSpinner(plotOutput("cty_natdeaths_map")), status = "danger"),
+                box(tableOutput("cty_natcases_table"), status = "warning", title = "Top 10 Counties by Cases / 100k", solidHeader = TRUE),
+                box(tableOutput("cty_natdeaths_table"), status = "danger", title = "Top 10 Counties by Deaths / 100k", solidHeader = TRUE)
+            ),
+            tabItem(
                 tabName = "county_capita_tab",
                 box(withSpinner(plotOutput("cty_cases_map")), status = "warning"),
                 box(withSpinner(plotOutput("cty_deaths_map")), status = "danger"),
@@ -279,13 +294,13 @@ ui <- dashboardPage(
                 box(tableOutput("cty_deaths_table"), status = "danger", title = "Top 10 Counties by Deaths / 100k", solidHeader = TRUE)
             ),
             tabItem(
-                tabName = "data_states_tab",
-                box(tableOutput("data_states"), status = "primary", title = "State Data Table", solidHeader = TRUE, width = 12)
-            ),
-            tabItem(
                 tabName = "county_aov_tab",
                 box(withSpinner(plotOutput("county_aov_effects", height = 768)), status = "primary"),
                 box(withSpinner(plotOutput("county_cor_plot", height = 768)), status = "primary")
+            ),
+            tabItem(
+                tabName = "data_states_tab",
+                box(tableOutput("data_states"), status = "primary", title = "State Data Table", solidHeader = TRUE, width = 12)
             )
         )
     )
@@ -308,7 +323,7 @@ server <- function(input, output, session) {
     
     output$us_tests_chart <- renderPlot({
         us_daily %>%
-            ggplot(aes(x = date, y = total_test_results_increase)) +
+            ggplot(aes(x = date, y = totalTestResultsIncrease)) +
             geom_hline(yintercept = 0, color = "dimgray") +
             geom_line() +
             geom_smooth(se = input$inc_se) +
@@ -319,7 +334,7 @@ server <- function(input, output, session) {
     
     output$us_cases_chart <- renderPlot({
         us_daily %>%
-            ggplot(aes(x = date, y = positive_increase)) +
+            ggplot(aes(x = date, y = positiveIncrease)) +
             geom_hline(yintercept = 0, color = "dimgray") +
             geom_line() +
             geom_smooth(se = input$inc_se) +
@@ -330,7 +345,7 @@ server <- function(input, output, session) {
 
     output$us_hosp_chart <- renderPlot({
         us_daily %>%
-            ggplot(aes(x = date, y = hospitalized_currently)) +
+            ggplot(aes(x = date, y = hospitalizedCurrently)) +
             geom_hline(yintercept = 0, color = "dimgray") +
             geom_line() +
             geom_smooth(se = input$inc_se) +
@@ -341,7 +356,7 @@ server <- function(input, output, session) {
     
     output$us_deaths_chart <- renderPlot({
         us_daily %>%
-            ggplot(aes(x = date, y = death_increase)) +
+            ggplot(aes(x = date, y = deathIncrease)) +
             geom_hline(yintercept = 0, color = "dimgray") +
             geom_line() +
             geom_smooth(se = input$inc_se) +
@@ -367,7 +382,7 @@ server <- function(input, output, session) {
     output$state_tests_chart <- renderPlot({
         states_daily %>%
             filter(state %in% toupper(input$statepicker)) %>%
-            ggplot(aes(x = date, y = total_test_results_increase, color = state)) +
+            ggplot(aes(x = date, y = totalTestResultsIncrease, color = state)) +
             geom_hline(yintercept = 0, color = "dimgray") +
             geom_vline(
                 data = stayhometable %>%
@@ -385,7 +400,7 @@ server <- function(input, output, session) {
     output$state_cases_chart <- renderPlot({
         states_daily %>%
             filter(state %in% toupper(input$statepicker)) %>%
-            ggplot(aes(x = date, y = positive_increase, color = state)) +
+            ggplot(aes(x = date, y = positiveIncrease, color = state)) +
             geom_hline(yintercept = 0, color = "dimgray") +
             geom_vline(
                 data = stayhometable %>%
@@ -403,7 +418,7 @@ server <- function(input, output, session) {
     output$state_hosp_chart <- renderPlot({
         states_daily %>%
             filter(state %in% toupper(input$statepicker)) %>%
-            ggplot(aes(x = date, y = hospitalized_currently, color = state)) +
+            ggplot(aes(x = date, y = hospitalizedCurrently, color = state)) +
             geom_hline(yintercept = 0, color = "dimgray") +
             geom_vline(
                 data = stayhometable %>%
@@ -421,7 +436,7 @@ server <- function(input, output, session) {
     output$state_deaths_chart <- renderPlot({
         states_daily %>%
             filter(state %in% toupper(input$statepicker)) %>%
-            ggplot(aes(x = date, y = death_increase, color = state)) +
+            ggplot(aes(x = date, y = deathIncrease, color = state)) +
             geom_hline(yintercept = 0, color = "dimgray") +
             geom_vline(
                 data = stayhometable %>%
@@ -440,7 +455,7 @@ server <- function(input, output, session) {
         states_daily %>%
             filter(state %in% toupper(input$statepicker)) %>%
             inner_join(df_pop_state2) %>%
-            ggplot(aes(x = date, y = 100000 * total_test_results_increase / pop, color = state)) +
+            ggplot(aes(x = date, y = 100000 * totalTestResultsIncrease / pop, color = state)) +
             geom_hline(yintercept = 0, color = "dimgray") +
             geom_vline(
                 data = stayhometable %>%
@@ -459,7 +474,7 @@ server <- function(input, output, session) {
         states_daily %>%
             filter(state %in% toupper(input$statepicker)) %>%
             inner_join(df_pop_state2) %>%
-            ggplot(aes(x = date, y = 100000 * positive_increase / pop, color = state)) +
+            ggplot(aes(x = date, y = 100000 * positiveIncrease / pop, color = state)) +
             geom_hline(yintercept = 0, color = "dimgray") +
             geom_vline(
                 data = stayhometable %>%
@@ -478,7 +493,7 @@ server <- function(input, output, session) {
         states_daily %>%
             filter(state %in% toupper(input$statepicker)) %>%
             inner_join(df_pop_state2) %>%
-            ggplot(aes(x = date, y = 100000 * hospitalized_currently / pop, color = state)) +
+            ggplot(aes(x = date, y = 100000 * hospitalizedCurrently / pop, color = state)) +
             geom_hline(yintercept = 0, color = "dimgray") +
             geom_vline(
                 data = stayhometable %>%
@@ -497,7 +512,7 @@ server <- function(input, output, session) {
         states_daily %>%
             filter(state %in% toupper(input$statepicker)) %>%
             inner_join(df_pop_state2) %>%
-            ggplot(aes(x = date, y = 100000 * death_increase / pop, color = state)) +
+            ggplot(aes(x = date, y = 100000 * deathIncrease / pop, color = state)) +
             geom_hline(yintercept = 0, color = "dimgray") +
             geom_vline(
                 data = stayhometable %>%
@@ -602,7 +617,7 @@ server <- function(input, output, session) {
                 rename(pop = value) %>%
                 transmute(
                     region,
-                    value = 100000 * total_test_results / pop
+                    value = 100000 * totalTestResults / pop
                 ),
             title = "State Tests / 100k people",
             num_colors = 1
@@ -617,8 +632,8 @@ server <- function(input, output, session) {
             rename(pop = value) %>%
             transmute(
                 State = state,
-                `Population Tested` = total_test_results / pop,
-                `Positive Tests` = positive / total_test_results,
+                `Population Tested` = totalTestResults / pop,
+                `Positive Tests` = positive / totalTestResults,
                 `Mortality Rate` = death / positive
             ) %>%
             arrange(
@@ -642,7 +657,7 @@ server <- function(input, output, session) {
             rename(pop = value) %>%
             transmute(
                 State = state,
-                `Tests / 100k` = 100000 * total_test_results / pop,
+                `Tests / 100k` = 100000 * totalTestResults / pop,
                 `Cases / 100k` = 100000 * positive / pop,
                 `Deaths / 100k` = 100000 * death / pop
             ) %>%
@@ -668,7 +683,7 @@ server <- function(input, output, session) {
                 rename(pop = value) %>%
                 transmute(
                     region,
-                    value = 100 * total_test_results / pop
+                    value = 100 * totalTestResults / pop
                 ),
             title = "State % Population Tested",
             num_colors = 1
@@ -684,12 +699,54 @@ server <- function(input, output, session) {
                 rename(pop = value) %>%
                 transmute(
                     region,
-                    value = 100 * positive / total_test_results
+                    value = 100 * positive / totalTestResults
                 ),
             title = "State % Positive Tests",
             num_colors = 1
         )
     })
+
+    output$cty_natcases_map <- renderPlot({
+        county_choropleth(
+            county_data_cases,
+            title = "County Cases / 100k people",
+            num_colors = 1,
+        )
+    })
+    
+    output$cty_natdeaths_map <- renderPlot({
+        county_choropleth(
+            county_data_deaths,
+            title = "County Deaths / 100k people",
+            num_colors = 1
+        )
+    })
+
+    output$cty_natcases_table <- renderTable({
+        county_data_cases %>%
+            arrange(desc(value)) %>%
+            head(10) %>%
+            transmute(
+                State = state,
+                County = county,
+                Population = scales::comma(population),
+                Cases = scales::comma(cases),
+                `Cases / 100k` = scales::comma(value)
+            )
+    }, striped = TRUE)
+    
+    output$cty_natdeaths_table <- renderTable({
+        county_data_deaths %>%
+            arrange(desc(value)) %>%
+            head(10) %>%
+            transmute(
+                State = state,
+                County = county,
+                Population = scales::comma(population),
+                Deaths = scales::comma(deaths),
+                `Deaths / 100k` = scales::comma(value)
+            )
+    }, striped = TRUE)
 
     output$cty_cases_map <- renderPlot({
         county_choropleth(
@@ -708,7 +765,7 @@ server <- function(input, output, session) {
             num_colors = 1
         )
     })
-
+    
     output$cty_cases_table <- renderTable({
         county_data_cases %>%
             filter(state %in% df_pop_state2$name[df_pop_state2$state %in% input$statepicker]) %>%
@@ -717,6 +774,8 @@ server <- function(input, output, session) {
             transmute(
                 State = state,
                 County = county,
+                Population = scales::comma(population),
+                Cases = scales::comma(cases),
                 `Cases / 100k` = scales::comma(value)
             )
     }, striped = TRUE)
@@ -729,6 +788,8 @@ server <- function(input, output, session) {
             transmute(
                 State = state,
                 County = county,
+                Population = scales::comma(population),
+                Deaths = scales::comma(deaths),
                 `Deaths / 100k` = scales::comma(value)
             )
     }, striped = TRUE)
@@ -740,25 +801,19 @@ server <- function(input, output, session) {
             inner_join(df_pop_state, by="region") %>%
             transmute(
                 State = region,
+                lastUpdateEt,
+                dataQualityGrade,
                 Population = scales::comma(value, accuracy = 1),
-                Tests = scales::comma(total_test_results, accuracy = 1),
+                Tests = scales::comma(totalTestResults, accuracy = 1),
                 Negative = scales::comma(negative, accuracy = 1),
                 Positive = scales::comma(positive, accuracy = 1),
                 Deaths = scales::comma(death, accuracy = 1),
-                `% Tested` = scales::percent(total_test_results / value, accuracy = 0.1),
-                `% Positive` = scales::percent(positive / total_test_results, accuracy = 0.1),
+                `% Tested` = scales::percent(totalTestResults / value, accuracy = 0.1),
+                `% Positive` = scales::percent(positive / totalTestResults, accuracy = 0.1),
                 Mortality = scales::percent(death / positive, accuracy = 0.1),
-                `Tests / 100k` = scales::comma(100000 * total_test_results / value, accuracy = 1),
+                `Tests / 100k` = scales::comma(100000 * totalTestResults / value, accuracy = 1),
                 `Positive / 100k` = scales::comma(100000 * positive / value, accuracy = 1),
-                `Deaths / 100k` = scales::comma(100000 * death / value, accuracy = 1),
-                Updated = format(last_update, "%a, %b %d, %Y at %I:%M:%S %p %Z"),
-                DataQuality = case_when(
-                    score == 4 ~ "A",
-                    score == 3 ~ "B",
-                    score == 2 ~ "C",
-                    score == 1 ~ "D",
-                    TRUE ~ "Unknown"
-                )
+                `Deaths / 100k` = scales::comma(100000 * death / value, accuracy = 1)
             ) %>%
             arrange(State)
     }, striped = TRUE)
