@@ -336,8 +336,8 @@ server <- function(input, output, session) {
             geom_line() +
             geom_smooth(se = input$inc_se) +
             scale_y_continuous(labels = scales::comma) +
-            labs(x = "Date", y = "Cases") +
-            ggtitle("Daily National Cases")
+            labs(x = "Date", y = "Positive Tests") +
+            ggtitle("Daily National Positive Tests")
     })
 
     output$us_hosp_chart <- renderPlot({
@@ -408,8 +408,8 @@ server <- function(input, output, session) {
             geom_smooth(se = input$inc_se) +
             scale_y_continuous(labels = scales::comma) +
             scale_color_brewer(palette = "Set1") +
-            labs(x = "Date", y = "Cases", color = "State") +
-            ggtitle("Daily State Cases")
+            labs(x = "Date", y = "Positive Tests", color = "State") +
+            ggtitle("Daily State Positive Tests")
     })
     
     output$state_hosp_chart <- renderPlot({
@@ -482,8 +482,8 @@ server <- function(input, output, session) {
             geom_smooth(se = input$inc_se) +
             scale_y_continuous(labels = scales::comma) +
             scale_color_brewer(palette = "Set1") +
-            labs(x = "Date", y = "Cases / 100k", color = "State") +
-            ggtitle("Daily State Cases  / 100k people")
+            labs(x = "Date", y = "Positive Tests / 100k", color = "State") +
+            ggtitle("Daily State Positive Tests / 100k people")
     })
 
     output$state_hosp_capchart <- renderPlot({
@@ -552,7 +552,7 @@ server <- function(input, output, session) {
             scale_y_log10(labels = scales::comma) +
             scale_color_brewer(palette = "Set1") +
             scale_alpha(guide = "none") +
-            labs(x = "Date", y = "Cases", color = "State") +
+            labs(x = "Date", y = "New Cases", color = "State") +
             ggtitle("Daily State New Cases")
     })
     
@@ -584,7 +584,7 @@ server <- function(input, output, session) {
                     region,
                     value = 100000 * positive / pop
                 ),
-            title = "State Cases / 100k people",
+            title = "State Positive Tests / 100k people",
             num_colors = 1
         )
     })
@@ -671,18 +671,18 @@ server <- function(input, output, session) {
             transmute(
                 State = state,
                 `Tests / 100k` = 100000 * totalTestResults / pop,
-                `Cases / 100k` = 100000 * positive / pop,
+                `Positive Tests / 100k` = 100000 * positive / pop,
                 `Deaths / 100k` = 100000 * death / pop
             ) %>%
             arrange(
                 desc(`Deaths / 100k`),
-                desc(`Cases / 100k`),
+                desc(`Positive Tests / 100k`),
                 desc(`Tests / 100k`)
             ) %>%
             head(10) %>%
             mutate(
                 `Tests / 100k` = scales::comma(`Tests / 100k`),
-                `Cases / 100k` = scales::comma(`Cases / 100k`),
+                `Positive Tests / 100k` = scales::comma(`Positive Tests / 100k`),
                 `Deaths / 100k` = scales::comma(`Deaths / 100k`)
             )
     }, striped = TRUE)
@@ -789,7 +789,7 @@ server <- function(input, output, session) {
                 County = county,
                 Population = scales::comma(population),
                 Cases = scales::comma(cases),
-                `Cases / 100k` = scales::comma(value)
+                `Positive Tests / 100k` = scales::comma(value)
             )
     }, striped = TRUE)
     
