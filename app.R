@@ -6,6 +6,7 @@ library(rvest)
 library(stringi)
 library(anytime)
 library(ggplot2)
+library(effects)
 library(ggeffects)
 library(ggcorrplot)
 library(choroplethr)
@@ -219,8 +220,8 @@ ui <- dashboardPage(
                     solidHeader = TRUE
                 ),
                 box(
-                    "This dashboard was created by Lars Bernhardsson as a way to explore different ways to look at this data, and to exercise my R/Shiny skills. The code is available at https://github.com/lab1702/coviddash",
-                    title = "Author",
+                    "The source code is available at https://github.com/lab1702/coviddash",
+                    title = "Source Code",
                     status = "primary",
                     solidHeader = TRUE
                 )
