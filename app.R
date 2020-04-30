@@ -1,19 +1,15 @@
 
-library(dplyr)
-library(readr)
-library(forcats)
+library(tidyverse)
 library(rvest)
-library(stringi)
 library(anytime)
-library(ggplot2)
+library(shiny)
+library(shinycssloaders)
+library(shinydashboard)
 library(effects)
 library(ggeffects)
 library(ggcorrplot)
 library(choroplethr)
 library(choroplethrMaps)
-library(shiny)
-library(shinycssloaders)
-library(shinydashboard)
 
 options(stringsAsFactors = FALSE)
 
@@ -33,7 +29,7 @@ states_info <- read_csv("https://covidtracking.com/api/v1/states/info.csv")
 df_pop_state2 <- states_info %>%
     inner_join(
         df_pop_state %>%
-            mutate(name = stri_trans_totitle(region))
+            mutate(name = str_to_title(region))
     ) %>%
     transmute(
         state,
