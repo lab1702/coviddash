@@ -781,7 +781,7 @@ server <- function(input, output, session) {
                 County = county,
                 Population = scales::comma(population),
                 Cases = scales::comma(cases),
-                `Positive Tests / 100k` = scales::comma(value)
+                `Cases / 100k` = scales::comma(value)
             )
     }, striped = TRUE)
     
