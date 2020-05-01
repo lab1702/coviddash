@@ -8,8 +8,7 @@ library(shiny)
 library(shinycssloaders)
 library(shinydashboard)
 library(effects)
-library(ggeffects)
-library(ggcorrplot)
+library(corrplot)
 library(choroplethr)
 library(choroplethrMaps)
 
@@ -113,29 +112,14 @@ model_deaths_input <- all_county_data %>%
     )
 
 model_deaths_cor <- cor(model_deaths_input)
-model_deaths_cor_pmat <- cor_pmat(model_deaths_input)
-
-model_deaths_cor_plot <- ggcorrplot(
-    model_deaths_cor,
-    p.mat = model_deaths_cor_pmat,
-    title = "Demographic Correlations",
-    colors = c("darkred", "white", "darkblue"),
-    lab = TRUE
-)
+model_deaths_cor_mtest <- cor.mtest(model_deaths_input)
 
 model_deaths_aov <- aov(
     `Dead/100k` ~ .,
     data = model_deaths_input
 )
 
-model_deaths_effects <- ggeffect(model_deaths_aov)
-
-model_deaths_effects_plot <- plot(
-    model_deaths_effects,
-    facets = TRUE,
-    colors = "flat",
-    show.x.title = FALSE
-) + ggtitle("Deaths / 100k people - Analysis of Variance - Effects")
+model_deaths_effects <- allEffects(model_deaths_aov)
 
 
 ui <- dashboardPage(
@@ -826,11 +810,18 @@ server <- function(input, output, session) {
     }, striped = TRUE)
     
     output$county_aov_effects <- renderPlot({
-        model_deaths_effects_plot
+        plot(
+            model_deaths_effects,
+            rotx = 90
+        )
     })
     
     output$county_cor_plot <- renderPlot({
-        model_deaths_cor_plot
+        corrplot.mixed(
+            corr = model_deaths_cor,
+            p.mat = model_deaths_cor_mtest$p,
+            main = "\nDemographic Correlations"
+        )
     })
 }
 
