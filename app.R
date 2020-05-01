@@ -515,7 +515,7 @@ server <- function(input, output, session) {
     
     output$state_rt_chart <- renderPlot({
         rt_data %>%
-            ggplot(aes(x = as.Date(date), y = mean, group = region, color = region)) +
+            ggplot(aes(x = as.Date(date), y = mean, color = region)) +
             geom_hline(yintercept = 1, color = "dimgray") +
             geom_vline(
                 data = stayhometable %>%
@@ -533,7 +533,7 @@ server <- function(input, output, session) {
     
     output$state_rtcases_chart <- renderPlot({
         rt_data %>%
-            ggplot(aes(x = as.Date(date), y = new_cases, group = region, color = region)) +
+            ggplot(aes(x = as.Date(date), y = new_cases, color = region)) +
             geom_vline(
                 data = stayhometable %>%
                     filter(StateCode %in% toupper(input$statepicker)),
