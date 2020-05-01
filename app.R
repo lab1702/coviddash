@@ -1,5 +1,7 @@
 
 library(tidyverse)
+library(ggthemes)
+library(gghighlight)
 library(rvest)
 library(anytime)
 library(shiny)
@@ -13,7 +15,7 @@ library(choroplethrMaps)
 
 options(stringsAsFactors = FALSE)
 
-theme_set(theme_grey(base_size = 15) + theme(legend.position = "top"))
+theme_set(theme_fivethirtyeight())
 
 
 data("df_pop_state")
@@ -252,7 +254,7 @@ ui <- dashboardPage(
                 tabName = "state_rt_tab",
                 box(withSpinner(plotOutput("state_rt_chart", height = 768)), status = "primary"),
                 box(withSpinner(plotOutput("state_rtcases_chart", height = 768)), status = "primary"),
-                box(strong("Rt = Average number of people who become infected by an infectious person. Rt > 1 = the virus will spread quickly, Rt < 1 = the virus will stop spreading. Vertical lines are Stay Home Orders. Data on this page is sourced from https://rt.live"), status = "primary", width = 12)
+                box("Rt = Average number of people who become infected by an infectious person. Rt > 1 = the virus will spread quickly, Rt < 1 = the virus will stop spreading. Vertical lines are Stay Home Orders. Data on this page is sourced from https://rt.live", status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "stayhome_tab",
@@ -310,7 +312,6 @@ server <- function(input, output, session) {
             geom_line(aes(y = death, color = "Deaths"), size = 1) +
             geom_line(aes(y = recovered, color = "Recovered"), size = 1) +
             scale_y_continuous(labels = scales::comma) +
-            scale_color_brewer(palette = "Set1") +
             labs(x = "Date", y = "Count", color = "Events") +
             ggtitle("Cumulative National Counts")
     })
@@ -367,7 +368,6 @@ server <- function(input, output, session) {
             geom_line(aes(y = death, color = "Deaths"), size = 1) +
             geom_line(aes(y = recovered, color = "Recovered"), size = 1) +
             scale_y_continuous(labels = scales::comma) +
-            scale_color_brewer(palette = "Set1") +
             labs(x = "Date", y = "Count", color = "Events") +
             facet_wrap(~ state) +
             ggtitle("Cumulative State Counts")
@@ -386,7 +386,6 @@ server <- function(input, output, session) {
             geom_line() +
             geom_smooth(se = input$inc_se) +
             scale_y_continuous(labels = scales::comma) +
-            scale_color_brewer(palette = "Set1") +
             labs(x = "Date", y = "Tests", color = "State") +
             ggtitle("Daily State Tests")
     })
@@ -404,7 +403,6 @@ server <- function(input, output, session) {
             geom_line() +
             geom_smooth(se = input$inc_se) +
             scale_y_continuous(labels = scales::comma) +
-            scale_color_brewer(palette = "Set1") +
             labs(x = "Date", y = "Positive Tests", color = "State") +
             ggtitle("Daily State Positive Tests")
     })
@@ -422,7 +420,6 @@ server <- function(input, output, session) {
             geom_line() +
             geom_smooth(se = input$inc_se) +
             scale_y_continuous(labels = scales::comma) +
-            scale_color_brewer(palette = "Set1") +
             labs(x = "Date", y = "Currently Hospitalized", color = "State") +
             ggtitle("Daily State Currently Hospitalized")
     })
@@ -440,7 +437,6 @@ server <- function(input, output, session) {
             geom_line() +
             geom_smooth(se = input$inc_se) +
             scale_y_continuous(labels = scales::comma) +
-            scale_color_brewer(palette = "Set1") +
             labs(x = "Date", y = "Deaths", color = "State") +
             ggtitle("Daily State Deaths")
     })
@@ -459,7 +455,6 @@ server <- function(input, output, session) {
             geom_line() +
             geom_smooth(se = input$inc_se) +
             scale_y_continuous(labels = scales::comma) +
-            scale_color_brewer(palette = "Set1") +
             labs(x = "Date", y = "Tests / 100k", color = "State") +
             ggtitle("Daily State Tests / 100k people")
     })
@@ -478,7 +473,6 @@ server <- function(input, output, session) {
             geom_line() +
             geom_smooth(se = input$inc_se) +
             scale_y_continuous(labels = scales::comma) +
-            scale_color_brewer(palette = "Set1") +
             labs(x = "Date", y = "Positive Tests / 100k", color = "State") +
             ggtitle("Daily State Positive Tests / 100k people")
     })
@@ -497,7 +491,6 @@ server <- function(input, output, session) {
             geom_line() +
             geom_smooth(se = input$inc_se) +
             scale_y_continuous(labels = scales::comma) +
-            scale_color_brewer(palette = "Set1") +
             labs(x = "Date", y = "Currently Hospitalized / 100k", color = "State") +
             ggtitle("Daily State Currently Hospitalized  / 100k people")
     })
@@ -516,39 +509,42 @@ server <- function(input, output, session) {
             geom_line() +
             geom_smooth(se = input$inc_se) +
             scale_y_continuous(labels = scales::comma) +
-            scale_color_brewer(palette = "Set1") +
             labs(x = "Date", y = "Deaths / 100k", color = "State") +
             ggtitle("Daily State Deaths / 100k people")
     })
     
     output$state_rt_chart <- renderPlot({
         rt_data %>%
-            ggplot(aes(x = as.Date(date), y = mean, group = region, color = ifelse(region %in% toupper(input$statepicker), region, "*Other"))) +
+            ggplot(aes(x = as.Date(date), y = mean, group = region, color = region)) +
             geom_hline(yintercept = 1, color = "dimgray") +
             geom_vline(
                 data = stayhometable %>%
                     filter(StateCode %in% toupper(input$statepicker)),
                 aes(xintercept = `Effective Date`, color = StateCode)
             ) +
-            geom_line(aes(alpha = ifelse(region %in% toupper(input$statepicker), 1, 0)), size = 1) +
-            scale_color_brewer(palette = "Set1") +
-            scale_alpha(guide = "none") +
+            geom_line(size = 1) +
+            gghighlight(
+                region %in% toupper(input$statepicker),
+                unhighlighted_params = list(alpha = 0.5, size = 0.5)
+            ) +
             labs(x = "Date", y = "Rt", color = "State") +
             ggtitle("Daily State Rt")
     })
     
     output$state_rtcases_chart <- renderPlot({
         rt_data %>%
-            ggplot(aes(x = as.Date(date), y = new_cases, group = region, color = ifelse(region %in% toupper(input$statepicker), region, "*Other"))) +
+            ggplot(aes(x = as.Date(date), y = new_cases, group = region, color = region)) +
             geom_vline(
                 data = stayhometable %>%
                     filter(StateCode %in% toupper(input$statepicker)),
                 aes(xintercept = `Effective Date`, color = StateCode)
             ) +
-            geom_line(aes(alpha = ifelse(region %in% toupper(input$statepicker), 1, 0)), size = 1) +
-            scale_y_log10(labels = scales::comma) +
-            scale_color_brewer(palette = "Set1") +
-            scale_alpha(guide = "none") +
+            geom_line(size = 1) +
+            gghighlight(
+                region %in% toupper(input$statepicker),
+                unhighlighted_params = list(alpha = 0.5, size = 0.5)
+            ) +
+            scale_y_sqrt(labels = scales::comma) +
             labs(x = "Date", y = "New Cases", color = "State") +
             ggtitle("Daily State New Cases")
     })
@@ -564,8 +560,7 @@ server <- function(input, output, session) {
             )) +
             geom_vline(xintercept = Sys.Date(), linetype = "longdash") +
             geom_point(size = 4) +
-            geom_segment(size = 1, arrow = arrow()) +
-            scale_color_brewer(palette = "Set1") +
+            geom_segment(arrow = arrow()) +
             labs(x = "Date", y = "State", color = "Open Ended") +
             ggtitle("Stay At Home Orders")
     })
