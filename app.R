@@ -1,10 +1,13 @@
 
-library(tidyverse)
+library(dplyr)
+library(forcats)
+library(readr)
+library(stringr)
+library(ggplot2)
 library(gghighlight)
 library(rvest)
 library(anytime)
 library(shiny)
-library(shinycssloaders)
 library(shinydashboard)
 library(effects)
 library(corrplot)
@@ -12,8 +15,6 @@ library(choroplethr)
 library(choroplethrMaps)
 
 options(stringsAsFactors = FALSE)
-
-theme_set(theme_grey(base_size = 15))
 
 
 data("df_pop_state")
@@ -69,7 +70,9 @@ stayhometable <- stayhometable %>%
 
 rt_data <- read_csv("https://d14wlfuexuxgcm.cloudfront.net/covid/rt.csv")
 
-all_county_data <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>%
+raw_county_data <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+
+all_county_data <- raw_county_data %>%
     filter(!is.na(fips)) %>%
     mutate(region = as.numeric(fips)) %>%
     inner_join(df_county_demographics, by = "region") %>%
@@ -131,6 +134,7 @@ ui <- dashboardPage(
             menuItem(text = "Daily State Counts", tabName = "state_charts_tab"),
             menuItem(text = "Daily State Counts / 100k", tabName = "state_capcharts_tab"),
             menuItem(text = "Daily State Rt", tabName = "state_rt_tab"),
+            menuItem(text = "Date Heatmap", tabName = "heatmaps_tab"),
             menuItem(text = "Stay At Home Orders", tabName = "stayhome_tab"),
             menuItem(text = "State Maps (%)", tabName = "state_percent_tab"),
             menuItem(text = "State Maps (#)", tabName = "state_capita_tab"),
@@ -208,67 +212,71 @@ ui <- dashboardPage(
             ),
             tabItem(
                 tabName = "us_charts_tab",
-                box(withSpinner(plotOutput("us_tests_chart")), status = "primary"),
-                box(withSpinner(plotOutput("us_cases_chart")), status = "warning"),
-                box(withSpinner(plotOutput("us_hosp_chart")), status = "warning"),
-                box(withSpinner(plotOutput("us_deaths_chart")), status = "danger")
+                box(plotOutput("us_tests_chart"), status = "primary"),
+                box(plotOutput("us_cases_chart"), status = "warning"),
+                box(plotOutput("us_hosp_chart"), status = "warning"),
+                box(plotOutput("us_deaths_chart"), status = "danger")
             ),
             tabItem(
                 tabName = "state_charts_tab",
-                box(withSpinner(plotOutput("state_tests_chart")), status = "primary"),
-                box(withSpinner(plotOutput("state_cases_chart")), status = "warning"),
-                box(withSpinner(plotOutput("state_hosp_chart")), status = "warning"),
-                box(withSpinner(plotOutput("state_deaths_chart")), status = "danger")
+                box(plotOutput("state_tests_chart"), status = "primary"),
+                box(plotOutput("state_cases_chart"), status = "warning"),
+                box(plotOutput("state_hosp_chart"), status = "warning"),
+                box(plotOutput("state_deaths_chart"), status = "danger")
             ),
             tabItem(
                 tabName = "state_capcharts_tab",
-                box(withSpinner(plotOutput("state_tests_capchart")), status = "primary"),
-                box(withSpinner(plotOutput("state_cases_capchart")), status = "warning"),
-                box(withSpinner(plotOutput("state_hosp_capchart")), status = "warning"),
-                box(withSpinner(plotOutput("state_deaths_capchart")), status = "danger")
+                box(plotOutput("state_tests_capchart"), status = "primary"),
+                box(plotOutput("state_cases_capchart"), status = "warning"),
+                box(plotOutput("state_hosp_capchart"), status = "warning"),
+                box(plotOutput("state_deaths_capchart"), status = "danger")
             ),
             tabItem(
                 tabName = "state_rt_tab",
-                box(withSpinner(plotOutput("state_rt_chart", height = 768)), status = "primary"),
-                box(withSpinner(plotOutput("state_rtcases_chart", height = 768)), status = "primary"),
+                box(plotOutput("state_rt_chart", height = 768), status = "primary"),
+                box(plotOutput("state_rtcases_chart", height = 768), status = "primary"),
                 box("Rt = Average number of people who become infected by an infectious person. Rt > 1 = the virus will spread quickly, Rt < 1 = the virus will stop spreading. Data on this page is sourced from https://rt.live", status = "primary", width = 12)
             ),
             tabItem(
+                tabName = "heatmaps_tab",
+                box(plotOutput("state_heatmap", height = 768), status = "primary", width = 12)
+            ),
+            tabItem(
                 tabName = "stayhome_tab",
-                box(withSpinner(plotOutput("stayhome_chart", height = 768)), status = "primary")
+                box(plotOutput("stayhome_chart", height = 768), status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "state_percent_tab",
-                box(withSpinner(plotOutput("percent_tests_map")), status = "primary"),
-                box(withSpinner(plotOutput("pos_tests_map")), status = "warning"),
-                box(withSpinner(plotOutput("cap_deaths_cases_map")), status = "danger"),
+                box(plotOutput("percent_tests_map"), status = "primary"),
+                box(plotOutput("pos_tests_map"), status = "warning"),
+                box(plotOutput("cap_deaths_cases_map"), status = "danger"),
                 box(tableOutput("percent_states_top10_table"), status = "danger", title = "Top 10 States by Mortality Rate", solidHeader = TRUE)
             ),
             tabItem(
                 tabName = "state_capita_tab",
-                box(withSpinner(plotOutput("cap_tests_map")), status = "primary"),
-                box(withSpinner(plotOutput("cap_cases_map")), status = "warning"),
-                box(withSpinner(plotOutput("cap_deaths_map")), status = "danger"),
+                box(plotOutput("cap_tests_map"), status = "primary"),
+                box(plotOutput("cap_cases_map"), status = "warning"),
+                box(plotOutput("cap_deaths_map"), status = "danger"),
                 box(tableOutput("cap_states_top10_table"), status = "danger", title = "Top 10 States by Deaths / 100k people", solidHeader = TRUE)
             ),
             tabItem(
                 tabName = "county_natcapita_tab",
-                box(withSpinner(plotOutput("cty_natcases_map")), status = "warning"),
-                box(withSpinner(plotOutput("cty_natdeaths_map")), status = "danger"),
+                box(plotOutput("cty_natcases_map"), status = "warning"),
+                box(plotOutput("cty_natdeaths_map"), status = "danger"),
                 box(tableOutput("cty_natcases_table"), status = "warning", title = "Top 10 Counties by Cases / 100k", solidHeader = TRUE),
                 box(tableOutput("cty_natdeaths_table"), status = "danger", title = "Top 10 Counties by Deaths / 100k", solidHeader = TRUE)
             ),
             tabItem(
                 tabName = "county_capita_tab",
-                box(withSpinner(plotOutput("cty_cases_map")), status = "warning"),
-                box(withSpinner(plotOutput("cty_deaths_map")), status = "danger"),
+                box(plotOutput("cty_cases_map"), status = "warning"),
+                box(plotOutput("cty_deaths_map"), status = "danger"),
                 box(tableOutput("cty_cases_table"), status = "warning", title = "Top 10 Counties by Cases / 100k", solidHeader = TRUE),
                 box(tableOutput("cty_deaths_table"), status = "danger", title = "Top 10 Counties by Deaths / 100k", solidHeader = TRUE)
             ),
             tabItem(
                 tabName = "county_aov_tab",
-                box(withSpinner(plotOutput("county_aov_effects", height = 768)), status = "primary"),
-                box(withSpinner(plotOutput("county_cor_plot", height = 768)), status = "primary")
+                box(plotOutput("county_aov_effects", height = 768), status = "primary"),
+                box(plotOutput("county_cor_plot", height = 768), status = "primary")
             ),
             tabItem(
                 tabName = "data_tables_tab",
@@ -497,9 +505,28 @@ server <- function(input, output, session) {
                 region %in% toupper(input$statepicker),
                 unhighlighted_params = list(alpha = 0.5, size = 0.5)
             ) +
-            scale_y_log10(labels = scales::comma) +
+            scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "New Cases", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
             ggtitle("Daily State New Cases")
+    })
+    
+    output$state_heatmap <- renderPlot({
+        states_daily %>%
+            filter(
+                deathIncrease > 0
+            ) %>%
+            group_by(state) %>%
+            mutate(
+                deathIncreaseMax = max(deathIncrease, na.rm = TRUE),
+                dayType = deathIncrease / deathIncreaseMax
+            ) %>%
+            ungroup() %>%
+            ggplot(aes(x = date, y = fct_rev(state), fill = dayType)) +
+            geom_vline(xintercept = Sys.Date()) +
+            geom_tile(color = "white") +
+            scale_fill_distiller(palette = "RdYlGn", labels = scales::percent) +
+            labs(x = "Date", y = "State", fill = "") +
+            ggtitle("Daily Death Count Compared To Each State's Worst Day")
     })
     
     output$stayhome_chart <- renderPlot({
@@ -511,7 +538,7 @@ server <- function(input, output, session) {
                 yend = fct_reorder(factor(State), `Effective Date`, .desc = TRUE),
                 color = fct_rev(ifelse(is.na(`Duration or End Date`), "Yes", "No"))
             )) +
-            geom_vline(xintercept = Sys.Date(), linetype = "longdash") +
+            geom_vline(xintercept = Sys.Date()) +
             geom_point(size = 4) +
             geom_segment(arrow = arrow()) +
             labs(x = "Date", y = "State", color = "Open Ended", caption = "Vertical line represents today.") +
@@ -529,8 +556,7 @@ server <- function(input, output, session) {
                     region,
                     value = 100000 * positive / pop
                 ),
-            title = "State Positive Tests / 100k people",
-            num_colors = 1
+            title = "State Positive Tests / 100k people"
         )
     })
 
@@ -545,8 +571,7 @@ server <- function(input, output, session) {
                     region,
                     value = 100 * death / positive
                 ),
-            title = "State Mortality Rate %",
-            num_colors = 1
+            title = "State Mortality Rate %"
         )
     })
     
@@ -561,8 +586,7 @@ server <- function(input, output, session) {
                     region,
                     value = 100000 * death / pop
                 ),
-            title = "State Deaths / 100k people",
-            num_colors = 1
+            title = "State Deaths / 100k people"
         )
     })
 
@@ -577,8 +601,7 @@ server <- function(input, output, session) {
                     region,
                     value = 100000 * totalTestResults / pop
                 ),
-            title = "State Tests / 100k people",
-            num_colors = 1
+            title = "State Tests / 100k people"
         )
     })
     
@@ -643,8 +666,7 @@ server <- function(input, output, session) {
                     region,
                     value = 100 * totalTestResults / pop
                 ),
-            title = "State % Population Tested",
-            num_colors = 1
+            title = "State % Population Tested"
         )
     })
     
@@ -659,24 +681,21 @@ server <- function(input, output, session) {
                     region,
                     value = 100 * positive / totalTestResults
                 ),
-            title = "State % Positive Tests",
-            num_colors = 1
+            title = "State % Positive Tests"
         )
     })
 
     output$cty_natcases_map <- renderPlot({
         county_choropleth(
             county_data_cases,
-            title = "County Cases / 100k people",
-            num_colors = 1,
+            title = "County Deaths / 100k people"
         )
     })
     
     output$cty_natdeaths_map <- renderPlot({
         county_choropleth(
             county_data_deaths,
-            title = "County Deaths / 100k people",
-            num_colors = 1
+            title = "County Deaths / 100k people"
         )
     })
 
@@ -710,8 +729,7 @@ server <- function(input, output, session) {
         county_choropleth(
             county_data_cases,
             state_zoom = tolower(df_pop_state2$name[df_pop_state2$state %in% input$statepicker]),
-            title = "County Cases / 100k people",
-            num_colors = 1,
+            title = "County Cases / 100k people"
         )
     })
     
@@ -719,8 +737,7 @@ server <- function(input, output, session) {
         county_choropleth(
             county_data_deaths,
             state_zoom = tolower(df_pop_state2$name[df_pop_state2$state %in% input$statepicker]),
-            title = "County Deaths / 100k people",
-            num_colors = 1
+            title = "County Deaths / 100k people"
         )
     })
     
