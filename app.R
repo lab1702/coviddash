@@ -5,6 +5,7 @@ library(readr)
 library(stringr)
 library(ggplot2)
 library(gghighlight)
+library(hrbrthemes)
 library(rvest)
 library(anytime)
 library(shiny)
@@ -16,7 +17,7 @@ library(choroplethrMaps)
 
 options(stringsAsFactors = FALSE)
 
-theme_set(theme_minimal())
+theme_set(theme_ipsum())
 
 
 data("df_pop_state")
@@ -136,7 +137,8 @@ ui <- dashboardPage(
             menuItem(text = "Daily State Counts", tabName = "state_charts_tab"),
             menuItem(text = "Daily State Counts / 100k", tabName = "state_capcharts_tab"),
             menuItem(text = "Daily State Rt", tabName = "state_rt_tab"),
-            menuItem(text = "Date Heatmap", tabName = "heatmaps_tab"),
+            menuItem(text = "Positive Tests Heatmap", tabName = "heatmaps_positive_tab"),
+            menuItem(text = "Deaths Heatmap", tabName = "heatmaps_death_tab"),
             menuItem(text = "Stay At Home Orders", tabName = "stayhome_tab"),
             menuItem(text = "State Maps (%)", tabName = "state_percent_tab"),
             menuItem(text = "State Maps (#)", tabName = "state_capita_tab"),
@@ -240,8 +242,12 @@ ui <- dashboardPage(
                 box("Rt = Average number of people who become infected by an infectious person. Rt > 1 = the virus will spread quickly, Rt < 1 = the virus will stop spreading. Data on this page is sourced from https://rt.live", status = "primary", width = 12)
             ),
             tabItem(
-                tabName = "heatmaps_tab",
-                box(plotOutput("state_heatmap", height = 768), status = "primary", width = 12)
+                tabName = "heatmaps_positive_tab",
+                box(plotOutput("state_positive_heatmap", height = 768), status = "primary", width = 12)
+            ),
+            tabItem(
+                tabName = "heatmaps_death_tab",
+                box(plotOutput("state_death_heatmap", height = 768), status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "stayhome_tab",
@@ -513,7 +519,48 @@ server <- function(input, output, session) {
             ggtitle("Daily State New Cases")
     })
     
-    output$state_heatmap <- renderPlot({
+    output$state_positive_heatmap <- renderPlot({
+        d <- states_daily %>%
+            filter(
+                positiveIncrease > 0
+            ) %>%
+            group_by(state) %>%
+            mutate(
+                positiveIncreaseMax = max(positiveIncrease, na.rm = TRUE),
+                dayType = positiveIncrease / positiveIncreaseMax,
+                worstDays = positiveIncrease == positiveIncreaseMax
+            ) %>%
+            ungroup() %>%
+            filter(positiveIncreaseMax > 99)
+        
+        worst <- d %>%
+            filter(worstDays) %>%
+            group_by(state) %>%
+            arrange(date) %>%
+            filter(row_number() == 1) %>%
+            ungroup() %>%
+            transmute(
+                state,
+                worstdate = date
+            )
+
+        d %>%
+            inner_join(worst) %>%
+            mutate(daynumber = as.integer(date - worstdate, "days")) %>%
+            ggplot(aes(x = daynumber, y = fct_reorder(state, desc(worstdate)), fill = dayType)) +
+            geom_hline(
+                data = d %>%
+                    filter(state %in% toupper(input$statepicker)),
+                aes(yintercept = state, color = state),
+                size = 1
+            ) +
+            geom_tile(color = "white") +
+            scale_fill_viridis_c(labels = scales::percent, direction = -1, option = "B") +
+            labs(x = "Day", y = "State", fill = "", color = "", caption = "Day 0 is each state's worst day.") +
+            ggtitle("Positive Tests per Day as percent of Highest Single Day Count")
+    })
+
+    output$state_death_heatmap <- renderPlot({
         d <- states_daily %>%
             filter(
                 deathIncrease > 0
@@ -524,29 +571,34 @@ server <- function(input, output, session) {
                 dayType = deathIncrease / deathIncreaseMax,
                 worstDays = deathIncrease == deathIncreaseMax
             ) %>%
-            ungroup()
+            ungroup() %>%
+            filter(deathIncreaseMax > 9)
+        
+        worst <- d %>%
+            filter(worstDays) %>%
+            group_by(state) %>%
+            arrange(date) %>%
+            filter(row_number() == 1) %>%
+            ungroup() %>%
+            transmute(
+                state,
+                worstdate = date
+            )
         
         d %>%
-            ggplot(aes(x = date, y = fct_rev(state), fill = dayType)) +
+            inner_join(worst) %>%
+            mutate(daynumber = as.integer(date - worstdate, "days")) %>%
+            ggplot(aes(x = daynumber, y = fct_reorder(state, desc(worstdate)), fill = dayType)) +
             geom_hline(
                 data = d %>%
                     filter(state %in% toupper(input$statepicker)),
                 aes(yintercept = state, color = state),
                 size = 1
             ) +
-            geom_vline(
-                data = d %>%
-                    filter(
-                        state %in% toupper(input$statepicker),
-                        worstDays
-                    ),
-                aes(xintercept = date, color = state),
-                size = 2
-            ) +
             geom_tile(color = "white") +
-            scale_fill_viridis_c(labels = scales::percent, direction = -1) +
-            labs(x = "Date", y = "State", fill = "", color = "", caption = "Vertical lines highlight days with the largest death count so far in each state.") +
-            ggtitle("Daily Death Count Compared To Each State's Worst Day")
+            scale_fill_viridis_c(labels = scales::percent, direction = -1, option = "B") +
+            labs(x = "Day", y = "State", fill = "", color = "", caption = "Day 0 is each state's worst day.") +
+            ggtitle("Deaths per Day as percent of Highest Single Day Count")
     })
     
     output$stayhome_chart <- renderPlot({
