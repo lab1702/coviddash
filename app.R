@@ -16,6 +16,8 @@ library(choroplethrMaps)
 
 options(stringsAsFactors = FALSE)
 
+theme_set(theme_minimal())
+
 
 data("df_pop_state")
 data("df_county_demographics")
@@ -276,7 +278,8 @@ ui <- dashboardPage(
             tabItem(
                 tabName = "county_aov_tab",
                 box(plotOutput("county_aov_effects", height = 768), status = "primary"),
-                box(plotOutput("county_cor_plot", height = 768), status = "primary")
+                box(plotOutput("county_cor_plot", height = 768), status = "primary"),
+                box("This page includes all counties, not just ones in states that are selected.", status = "primary", width = 12)
             ),
             tabItem(
                 tabName = "data_tables_tab",
@@ -511,21 +514,38 @@ server <- function(input, output, session) {
     })
     
     output$state_heatmap <- renderPlot({
-        states_daily %>%
+        d <- states_daily %>%
             filter(
                 deathIncrease > 0
             ) %>%
             group_by(state) %>%
             mutate(
                 deathIncreaseMax = max(deathIncrease, na.rm = TRUE),
-                dayType = deathIncrease / deathIncreaseMax
+                dayType = deathIncrease / deathIncreaseMax,
+                worstDays = deathIncrease == deathIncreaseMax
             ) %>%
-            ungroup() %>%
+            ungroup()
+        
+        d %>%
             ggplot(aes(x = date, y = fct_rev(state), fill = dayType)) +
-            geom_vline(xintercept = Sys.Date()) +
+            geom_hline(
+                data = d %>%
+                    filter(state %in% toupper(input$statepicker)),
+                aes(yintercept = state, color = state),
+                size = 1
+            ) +
+            geom_vline(
+                data = d %>%
+                    filter(
+                        state %in% toupper(input$statepicker),
+                        worstDays
+                    ),
+                aes(xintercept = date, color = state),
+                size = 2
+            ) +
             geom_tile(color = "white") +
-            scale_fill_distiller(palette = "RdYlGn", labels = scales::percent) +
-            labs(x = "Date", y = "State", fill = "") +
+            scale_fill_viridis_c(labels = scales::percent, direction = -1) +
+            labs(x = "Date", y = "State", fill = "", color = "", caption = "Vertical lines highlight days with the largest death count so far in each state.") +
             ggtitle("Daily Death Count Compared To Each State's Worst Day")
     })
     
