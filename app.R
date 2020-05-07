@@ -136,6 +136,9 @@ ui <- dashboardPage(
             menuItem(text = "Daily National Counts", tabName = "us_charts_tab"),
             menuItem(text = "Daily State Counts", tabName = "state_charts_tab"),
             menuItem(text = "Daily State Counts / 100k", tabName = "state_capcharts_tab"),
+            menuItem(text = "Daily National Hospital Counts", tabName = "us_hosp_tab"),
+            menuItem(text = "Daily State Hospital Counts", tabName = "state_hosp_tab"),
+            menuItem(text = "Daily State Hospital Counts / 100k", tabName = "state_caphosp_tab"),
             menuItem(text = "Daily State Rt", tabName = "state_rt_tab"),
             menuItem(text = "Positive Tests Heatmap", tabName = "heatmaps_positive_tab"),
             menuItem(text = "Deaths Heatmap", tabName = "heatmaps_death_tab"),
@@ -147,7 +150,6 @@ ui <- dashboardPage(
             menuItem(text = "Demographics", tabName = "county_aov_tab"),
             menuItem(text = "Data Tables", tabName = "data_tables_tab")
         ),
-        hr(),
         selectInput(
             inputId = "statepicker",
             label = "Select State(s):",
@@ -218,22 +220,37 @@ ui <- dashboardPage(
                 tabName = "us_charts_tab",
                 box(plotOutput("us_tests_chart"), status = "primary"),
                 box(plotOutput("us_cases_chart"), status = "warning"),
-                box(plotOutput("us_hosp_chart"), status = "warning"),
                 box(plotOutput("us_deaths_chart"), status = "danger")
             ),
             tabItem(
                 tabName = "state_charts_tab",
                 box(plotOutput("state_tests_chart"), status = "primary"),
                 box(plotOutput("state_cases_chart"), status = "warning"),
-                box(plotOutput("state_hosp_chart"), status = "warning"),
                 box(plotOutput("state_deaths_chart"), status = "danger")
             ),
             tabItem(
                 tabName = "state_capcharts_tab",
                 box(plotOutput("state_tests_capchart"), status = "primary"),
                 box(plotOutput("state_cases_capchart"), status = "warning"),
-                box(plotOutput("state_hosp_capchart"), status = "warning"),
                 box(plotOutput("state_deaths_capchart"), status = "danger")
+            ),
+            tabItem(
+                tabName = "us_hosp_tab",
+                box(plotOutput("us_hosp_chart"), status = "primary"),
+                box(plotOutput("us_icu_chart"), status = "warning"),
+                box(plotOutput("us_vent_chart"), status = "danger")
+            ),
+            tabItem(
+                tabName = "state_hosp_tab",
+                box(plotOutput("state_hosp_chart"), status = "primary"),
+                box(plotOutput("state_icu_chart"), status = "warning"),
+                box(plotOutput("state_vent_chart"), status = "danger")
+            ),
+            tabItem(
+                tabName = "state_caphosp_tab",
+                box(plotOutput("state_caphosp_chart"), status = "primary"),
+                box(plotOutput("state_capicu_chart"), status = "warning"),
+                box(plotOutput("state_capvent_chart"), status = "danger")
             ),
             tabItem(
                 tabName = "state_rt_tab",
@@ -321,17 +338,6 @@ server <- function(input, output, session) {
             ggtitle("Daily National Positive Tests")
     })
 
-    output$us_hosp_chart <- renderPlot({
-        us_daily %>%
-            ggplot(aes(x = date, y = hospitalizedCurrently)) +
-            geom_hline(yintercept = 0, color = "dimgray") +
-            geom_line() +
-            geom_smooth(se = input$inc_se) +
-            scale_y_continuous(labels = scales::comma) +
-            labs(x = "Date", y = "Currently Hospitalized") +
-            ggtitle("Daily National Currently Hospitalized")
-    })
-    
     output$us_deaths_chart <- renderPlot({
         us_daily %>%
             ggplot(aes(x = date, y = deathIncrease)) +
@@ -375,23 +381,6 @@ server <- function(input, output, session) {
             scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "Positive Tests", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
             ggtitle("Daily State Positive Tests")
-    })
-    
-    output$state_hosp_chart <- renderPlot({
-        states_daily %>%
-            filter(state %in% toupper(input$statepicker)) %>%
-            ggplot(aes(x = date, y = hospitalizedCurrently, color = state)) +
-            geom_hline(yintercept = 0, color = "dimgray") +
-            geom_vline(
-                data = stayhometable %>%
-                    filter(StateCode %in% toupper(input$statepicker)),
-                aes(xintercept = `Effective Date`, color = StateCode)
-            ) +
-            geom_line() +
-            geom_smooth(se = input$inc_se) +
-            scale_y_continuous(labels = scales::comma) +
-            labs(x = "Date", y = "Currently Hospitalized", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
-            ggtitle("Daily State Currently Hospitalized")
     })
     
     output$state_deaths_chart <- renderPlot({
@@ -447,24 +436,6 @@ server <- function(input, output, session) {
             ggtitle("Daily State Positive Tests / 100k people")
     })
 
-    output$state_hosp_capchart <- renderPlot({
-        states_daily %>%
-            filter(state %in% toupper(input$statepicker)) %>%
-            inner_join(df_pop_state2) %>%
-            ggplot(aes(x = date, y = 100000 * hospitalizedCurrently / pop, color = state)) +
-            geom_hline(yintercept = 0, color = "dimgray") +
-            geom_vline(
-                data = stayhometable %>%
-                    filter(StateCode %in% toupper(input$statepicker)),
-                aes(xintercept = `Effective Date`, color = StateCode)
-            ) +
-            geom_line() +
-            geom_smooth(se = input$inc_se) +
-            scale_y_continuous(labels = scales::comma) +
-            labs(x = "Date", y = "Currently Hospitalized / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
-            ggtitle("Daily State Currently Hospitalized  / 100k people")
-    })
-    
     output$state_deaths_capchart <- renderPlot({
         states_daily %>%
             filter(state %in% toupper(input$statepicker)) %>%
@@ -481,6 +452,144 @@ server <- function(input, output, session) {
             scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "Deaths / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
             ggtitle("Daily State Deaths / 100k people")
+    })
+    
+    output$us_hosp_chart <- renderPlot({
+        us_daily %>%
+            ggplot(aes(x = date, y = hospitalizedCurrently)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_line() +
+            geom_smooth(se = input$inc_se) +
+            scale_y_continuous(labels = scales::comma) +
+            labs(x = "Date", y = "Currently Hospitalized") +
+            ggtitle("Daily National Currently Hospitalized")
+    })
+    
+    output$us_icu_chart <- renderPlot({
+        us_daily %>%
+            ggplot(aes(x = date, y = inIcuCurrently)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_line() +
+            geom_smooth(se = input$inc_se) +
+            scale_y_continuous(labels = scales::comma) +
+            labs(x = "Date", y = "Currently in ICU") +
+            ggtitle("Daily National Currently in ICU")
+    })
+    
+    output$us_vent_chart <- renderPlot({
+        us_daily %>%
+            ggplot(aes(x = date, y = onVentilatorCurrently)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_line() +
+            geom_smooth(se = input$inc_se) +
+            scale_y_continuous(labels = scales::comma) +
+            labs(x = "Date", y = "Currently on Ventilator") +
+            ggtitle("Daily National Currently on Ventilator")
+    })
+    
+    output$state_hosp_chart <- renderPlot({
+        states_daily %>%
+            filter(state %in% toupper(input$statepicker)) %>%
+            ggplot(aes(x = date, y = hospitalizedCurrently, color = state)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_vline(
+                data = stayhometable %>%
+                    filter(StateCode %in% toupper(input$statepicker)),
+                aes(xintercept = `Effective Date`, color = StateCode)
+            ) +
+            geom_line() +
+            geom_smooth(se = input$inc_se) +
+            scale_y_continuous(labels = scales::comma) +
+            labs(x = "Date", y = "Currently Hospitalized", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+            ggtitle("Daily State Currently Hospitalized")
+    })
+
+    output$state_icu_chart <- renderPlot({
+        states_daily %>%
+            filter(state %in% toupper(input$statepicker)) %>%
+            ggplot(aes(x = date, y = inIcuCurrently, color = state)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_vline(
+                data = stayhometable %>%
+                    filter(StateCode %in% toupper(input$statepicker)),
+                aes(xintercept = `Effective Date`, color = StateCode)
+            ) +
+            geom_line() +
+            geom_smooth(se = input$inc_se) +
+            scale_y_continuous(labels = scales::comma) +
+            labs(x = "Date", y = "Currently in ICU", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+            ggtitle("Daily State Currently in ICU")
+    })
+
+    output$state_vent_chart <- renderPlot({
+        states_daily %>%
+            filter(state %in% toupper(input$statepicker)) %>%
+            ggplot(aes(x = date, y = onVentilatorCurrently, color = state)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_vline(
+                data = stayhometable %>%
+                    filter(StateCode %in% toupper(input$statepicker)),
+                aes(xintercept = `Effective Date`, color = StateCode)
+            ) +
+            geom_line() +
+            geom_smooth(se = input$inc_se) +
+            scale_y_continuous(labels = scales::comma) +
+            labs(x = "Date", y = "Currently on Ventilator", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+            ggtitle("Daily State Currently on Ventilator")
+    })
+    
+    output$state_caphosp_chart <- renderPlot({
+        states_daily %>%
+            filter(state %in% toupper(input$statepicker)) %>%
+            inner_join(df_pop_state2) %>%
+            ggplot(aes(x = date, y = 100000 * hospitalizedCurrently / pop, color = state)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_vline(
+                data = stayhometable %>%
+                    filter(StateCode %in% toupper(input$statepicker)),
+                aes(xintercept = `Effective Date`, color = StateCode)
+            ) +
+            geom_line() +
+            geom_smooth(se = input$inc_se) +
+            scale_y_continuous(labels = scales::comma) +
+            labs(x = "Date", y = "Hospitalized / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+            ggtitle("Daily State Currently Hospitalized / 100k people")
+    })
+    
+    output$state_capicu_chart <- renderPlot({
+        states_daily %>%
+            filter(state %in% toupper(input$statepicker)) %>%
+            inner_join(df_pop_state2) %>%
+            ggplot(aes(x = date, y = 100000 * inIcuCurrently / pop, color = state)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_vline(
+                data = stayhometable %>%
+                    filter(StateCode %in% toupper(input$statepicker)),
+                aes(xintercept = `Effective Date`, color = StateCode)
+            ) +
+            geom_line() +
+            geom_smooth(se = input$inc_se) +
+            scale_y_continuous(labels = scales::comma) +
+            labs(x = "Date", y = "Currently in ICU / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+            ggtitle("Daily State Currently in ICU / 100k people")
+    })
+    
+    output$state_capvent_chart <- renderPlot({
+        states_daily %>%
+            filter(state %in% toupper(input$statepicker)) %>%
+            inner_join(df_pop_state2) %>%
+            ggplot(aes(x = date, y = 100000 * onVentilatorCurrently / pop, color = state)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_vline(
+                data = stayhometable %>%
+                    filter(StateCode %in% toupper(input$statepicker)),
+                aes(xintercept = `Effective Date`, color = StateCode)
+            ) +
+            geom_line() +
+            geom_smooth(se = input$inc_se) +
+            scale_y_continuous(labels = scales::comma) +
+            labs(x = "Date", y = "Currently on Ventilator / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+            ggtitle("Daily State Currently on Ventilator / 100k people")
     })
     
     output$state_rt_chart <- renderPlot({
