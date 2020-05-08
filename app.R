@@ -1,11 +1,11 @@
 
 library(dplyr)
+library(tidyr)
 library(forcats)
 library(readr)
 library(stringr)
 library(ggplot2)
 library(gghighlight)
-library(hrbrthemes)
 library(rvest)
 library(anytime)
 library(shiny)
@@ -17,7 +17,7 @@ library(choroplethrMaps)
 
 options(stringsAsFactors = FALSE)
 
-theme_set(theme_ipsum())
+theme_set(theme_grey(base_size = 14))
 
 
 data("df_pop_state")
@@ -133,20 +133,27 @@ ui <- dashboardPage(
     sidebar = dashboardSidebar(
         sidebarMenu(
             menuItem(text = "About", tabName = "about_tab"),
-            menuItem(text = "Daily National Counts", tabName = "us_charts_tab"),
-            menuItem(text = "Daily State Counts", tabName = "state_charts_tab"),
-            menuItem(text = "Daily State Counts / 100k", tabName = "state_capcharts_tab"),
-            menuItem(text = "Daily National Hospital Counts", tabName = "us_hosp_tab"),
-            menuItem(text = "Daily State Hospital Counts", tabName = "state_hosp_tab"),
-            menuItem(text = "Daily State Hospital Counts / 100k", tabName = "state_caphosp_tab"),
+            menuItem(text = "Cumulative Counts", tabName = "total_tab"),
+            menuItem(
+                text = "Daily Counts",
+                menuSubItem(text = "National", tabName = "us_charts_tab"),
+                menuSubItem(text = "State", tabName = "state_charts_tab"),
+                menuSubItem(text = "State / 100k", tabName = "state_capcharts_tab"),
+                menuSubItem(text = "National Hospital", tabName = "us_hosp_tab"),
+                menuSubItem(text = "State Hospital", tabName = "state_hosp_tab"),
+                menuSubItem(text = "State Hospital / 100k", tabName = "state_caphosp_tab")
+            ),
             menuItem(text = "Daily State Rt", tabName = "state_rt_tab"),
             menuItem(text = "Positive Tests Heatmap", tabName = "heatmaps_positive_tab"),
             menuItem(text = "Deaths Heatmap", tabName = "heatmaps_death_tab"),
             menuItem(text = "Stay At Home Orders", tabName = "stayhome_tab"),
-            menuItem(text = "State Maps (%)", tabName = "state_percent_tab"),
-            menuItem(text = "State Maps (#)", tabName = "state_capita_tab"),
-            menuItem(text = "National County Map (#)", tabName = "county_natcapita_tab"),
-            menuItem(text = "State County Maps (#)", tabName = "county_capita_tab"),
+            menuItem(
+                text = "Maps",
+                menuSubItem(text = "State Percentages", tabName = "state_percent_tab"),
+                menuSubItem(text = "State Counts / 100k", tabName = "state_capita_tab"),
+                menuSubItem(text = "All Counties", tabName = "county_natcapita_tab"),
+                menuSubItem(text = "Selected Counties", tabName = "county_capita_tab")
+            ),
             menuItem(text = "Demographics", tabName = "county_aov_tab"),
             menuItem(text = "Data Tables", tabName = "data_tables_tab")
         ),
@@ -215,6 +222,11 @@ ui <- dashboardPage(
                     status = "primary",
                     solidHeader = TRUE
                 )
+            ),
+            tabItem(
+                tabName = "total_tab",
+                box(plotOutput("us_total_chart", height = 768), status = "primary"),
+                box(plotOutput("state_total_chart", height = 768), status = "primary")
             ),
             tabItem(
                 tabName = "us_charts_tab",
@@ -316,6 +328,69 @@ ui <- dashboardPage(
 
 server <- function(input, output, session) {
 
+    output$us_total_chart <- renderPlot({
+        us_daily %>%
+            select(
+                date,
+                totalTestResults,
+                positive,
+                death
+            ) %>%
+            pivot_longer(
+                cols = c(totalTestResults, positive, death)
+            ) %>%
+            mutate(
+                name = case_when(
+                    name == "totalTestResults" ~ "Tests",
+                    name == "positive" ~ "Positive Tests",
+                    name == "death" ~ "Deaths",
+                    TRUE ~ "ERROR"
+                )
+            ) %>%
+            ggplot(aes(x = date, y = value)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_line(size = 1) +
+            scale_y_continuous(labels = scales::comma) +
+            labs(x = "Date", y = "Count") +
+            facet_wrap(~ fct_rev(name), ncol = 1, scales = "free_y") +
+            ggtitle("National Cumulative Totals")
+    })
+
+    output$state_total_chart <- renderPlot({
+        states_daily %>%
+            filter(state %in% toupper(input$statepicker)) %>%
+            select(
+                date,
+                state,
+                totalTestResults,
+                positive,
+                death
+            ) %>%
+            pivot_longer(
+                cols = c(totalTestResults, positive, death)
+            ) %>%
+            mutate(
+                name = case_when(
+                    name == "totalTestResults" ~ "Tests",
+                    name == "positive" ~ "Positive Tests",
+                    name == "death" ~ "Deaths",
+                    TRUE ~ "ERROR"
+                )
+            ) %>%
+            ggplot(aes(x = date, y = value, color = state)) +
+            geom_hline(yintercept = 0, color = "dimgray") +
+            geom_vline(
+                data = stayhometable %>%
+                    filter(StateCode %in% toupper(input$statepicker)),
+                aes(xintercept = `Effective Date`, color = StateCode)
+            ) +
+            geom_line(size = 1) +
+            scale_y_continuous(labels = scales::comma) +
+            labs(x = "Date", y = "Count", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+            facet_wrap(~ fct_rev(name), ncol = 1, scales = "free_y") +
+            ggtitle("State Cumulative Totals")
+    })
+    
     output$us_tests_chart <- renderPlot({
         us_daily %>%
             ggplot(aes(x = date, y = totalTestResultsIncrease)) +
