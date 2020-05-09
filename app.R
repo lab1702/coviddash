@@ -6,6 +6,7 @@ library(readr)
 library(stringr)
 library(ggplot2)
 library(gghighlight)
+library(hrbrthemes)
 library(rvest)
 library(anytime)
 library(shiny)
@@ -17,7 +18,7 @@ library(choroplethrMaps)
 
 options(stringsAsFactors = FALSE)
 
-theme_set(theme_grey(base_size = 14))
+theme_set(theme_ipsum())
 
 
 data("df_pop_state")
@@ -177,149 +178,135 @@ ui <- dashboardPage(
                 box(
                     "This is still a test dashboard and may contain errors.",
                     title = "About",
-                    status = "danger",
-                    solidHeader = TRUE
+                    status = "danger"
                 ),
                 box(
                     "National and State data is downloaded from https://covidtracking.com/api",
-                    title = "National and State Data Source",
-                    status = "primary",
-                    solidHeader = TRUE
+                    title = "National and State Data Source"
                 ),
                 box(
                     "County level data is downloaded from https://github.com/nytimes/covid-19-data",
-                    title = "County Data Source",
-                    status = "primary",
-                    solidHeader = TRUE
+                    title = "County Data Source"
                 ),
                 box(
                     "Rt data is downloaded from https://rt.live",
-                    title = "Rt Data Source",
-                    status = "primary",
-                    solidHeader = TRUE
+                    title = "Rt Data Source"
                 ),
                 box(
                     "State level data about governors' Stay Home orders is downloaded from https://www.littler.com/publication-press/publication/stay-top-stay-home-list-statewide",
-                    title = "Stay Home Orders Data Source",
-                    status = "primary",
-                    solidHeader = TRUE
+                    title = "Stay Home Orders Data Source"
                 ),
                 box(
                     "Demographics data is pulled from the 2012 US American Community Survey (ACS) 5 year estimates included in the 'choroplethr' R package.",
-                    title = "Demographics Data Source",
-                    status = "primary",
-                    solidHeader = TRUE
+                    title = "Demographics Data Source"
                 ),
                 box(
                     "Please consider helping the Folding@home project by installing the software from https://foldingathome.org which lets you share unused computer time with COVID-19 (and other) researchers around the world.",
                     title = "Folding@home",
-                    status = "success",
-                    solidHeader = TRUE
+                    status = "success"
                 ),
                 box(
                     "The source code is available at https://github.com/lab1702/coviddash",
-                    title = "Source Code",
-                    status = "primary",
-                    solidHeader = TRUE
+                    title = "Source Code"
                 )
             ),
             tabItem(
                 tabName = "total_tab",
-                box(plotOutput("us_total_chart", height = 768), status = "primary"),
-                box(plotOutput("state_total_chart", height = 768), status = "primary")
+                box(plotOutput("us_total_chart", height = 768)),
+                box(plotOutput("state_total_chart", height = 768))
             ),
             tabItem(
                 tabName = "us_charts_tab",
-                box(plotOutput("us_tests_chart"), status = "primary"),
+                box(plotOutput("us_tests_chart")),
                 box(plotOutput("us_cases_chart"), status = "warning"),
                 box(plotOutput("us_deaths_chart"), status = "danger")
             ),
             tabItem(
                 tabName = "state_charts_tab",
-                box(plotOutput("state_tests_chart"), status = "primary"),
+                box(plotOutput("state_tests_chart")),
                 box(plotOutput("state_cases_chart"), status = "warning"),
                 box(plotOutput("state_deaths_chart"), status = "danger")
             ),
             tabItem(
                 tabName = "state_capcharts_tab",
-                box(plotOutput("state_tests_capchart"), status = "primary"),
+                box(plotOutput("state_tests_capchart")),
                 box(plotOutput("state_cases_capchart"), status = "warning"),
                 box(plotOutput("state_deaths_capchart"), status = "danger")
             ),
             tabItem(
                 tabName = "us_hosp_tab",
-                box(plotOutput("us_hosp_chart"), status = "primary"),
+                box(plotOutput("us_hosp_chart")),
                 box(plotOutput("us_icu_chart"), status = "warning"),
                 box(plotOutput("us_vent_chart"), status = "danger")
             ),
             tabItem(
                 tabName = "state_hosp_tab",
-                box(plotOutput("state_hosp_chart"), status = "primary"),
+                box(plotOutput("state_hosp_chart")),
                 box(plotOutput("state_icu_chart"), status = "warning"),
                 box(plotOutput("state_vent_chart"), status = "danger")
             ),
             tabItem(
                 tabName = "state_caphosp_tab",
-                box(plotOutput("state_caphosp_chart"), status = "primary"),
+                box(plotOutput("state_caphosp_chart")),
                 box(plotOutput("state_capicu_chart"), status = "warning"),
                 box(plotOutput("state_capvent_chart"), status = "danger")
             ),
             tabItem(
                 tabName = "state_rt_tab",
-                box(plotOutput("state_rt_chart", height = 768), status = "primary"),
-                box(plotOutput("state_rtcases_chart", height = 768), status = "primary"),
-                box("Rt = Average number of people who become infected by an infectious person. Rt > 1 = the virus will spread quickly, Rt < 1 = the virus will stop spreading. Data on this page is sourced from https://rt.live", status = "primary", width = 12)
+                box(plotOutput("state_rt_chart", height = 768)),
+                box(plotOutput("state_rtcases_chart", height = 768), status = "warning"),
+                box("Rt = Average number of people who become infected by an infectious person. Rt > 1 = the virus will spread quickly, Rt < 1 = the virus will stop spreading. Data on this page is sourced from https://rt.live", width = 12)
             ),
             tabItem(
                 tabName = "heatmaps_positive_tab",
-                box(plotOutput("state_positive_heatmap", height = 768), status = "primary", width = 12)
+                box(plotOutput("state_positive_heatmap", height = 768), status = "warning", width = 12)
             ),
             tabItem(
                 tabName = "heatmaps_death_tab",
-                box(plotOutput("state_death_heatmap", height = 768), status = "primary", width = 12)
+                box(plotOutput("state_death_heatmap", height = 768), status = "danger", width = 12)
             ),
             tabItem(
                 tabName = "stayhome_tab",
-                box(plotOutput("stayhome_chart", height = 768), status = "primary", width = 12)
+                box(plotOutput("stayhome_chart", height = 768), width = 12)
             ),
             tabItem(
                 tabName = "state_percent_tab",
-                box(plotOutput("percent_tests_map"), status = "primary"),
+                box(plotOutput("percent_tests_map")),
                 box(plotOutput("pos_tests_map"), status = "warning"),
                 box(plotOutput("cap_deaths_cases_map"), status = "danger"),
-                box(tableOutput("percent_states_top10_table"), status = "danger", title = "Top 10 States by Mortality Rate", solidHeader = TRUE)
+                box(tableOutput("percent_states_top10_table"), status = "danger", title = "Top 10 States by Mortality Rate")
             ),
             tabItem(
                 tabName = "state_capita_tab",
-                box(plotOutput("cap_tests_map"), status = "primary"),
+                box(plotOutput("cap_tests_map")),
                 box(plotOutput("cap_cases_map"), status = "warning"),
                 box(plotOutput("cap_deaths_map"), status = "danger"),
-                box(tableOutput("cap_states_top10_table"), status = "danger", title = "Top 10 States by Deaths / 100k people", solidHeader = TRUE)
+                box(tableOutput("cap_states_top10_table"), status = "danger", title = "Top 10 States by Deaths / 100k people")
             ),
             tabItem(
                 tabName = "county_natcapita_tab",
                 box(plotOutput("cty_natcases_map"), status = "warning"),
                 box(plotOutput("cty_natdeaths_map"), status = "danger"),
-                box(tableOutput("cty_natcases_table"), status = "warning", title = "Top 10 Counties by Cases / 100k", solidHeader = TRUE),
-                box(tableOutput("cty_natdeaths_table"), status = "danger", title = "Top 10 Counties by Deaths / 100k", solidHeader = TRUE)
+                box(tableOutput("cty_natcases_table"), status = "warning", title = "Top 10 Counties by Cases / 100k"),
+                box(tableOutput("cty_natdeaths_table"), status = "danger", title = "Top 10 Counties by Deaths / 100k")
             ),
             tabItem(
                 tabName = "county_capita_tab",
                 box(plotOutput("cty_cases_map"), status = "warning"),
                 box(plotOutput("cty_deaths_map"), status = "danger"),
-                box(tableOutput("cty_cases_table"), status = "warning", title = "Top 10 Counties by Cases / 100k", solidHeader = TRUE),
-                box(tableOutput("cty_deaths_table"), status = "danger", title = "Top 10 Counties by Deaths / 100k", solidHeader = TRUE)
+                box(tableOutput("cty_cases_table"), status = "warning", title = "Top 10 Counties by Cases / 100k"),
+                box(tableOutput("cty_deaths_table"), status = "danger", title = "Top 10 Counties by Deaths / 100k")
             ),
             tabItem(
                 tabName = "county_aov_tab",
-                box(plotOutput("county_aov_effects", height = 768), status = "primary"),
-                box(plotOutput("county_cor_plot", height = 768), status = "primary"),
-                box("This page includes all counties, not just ones in states that are selected.", status = "primary", width = 12)
+                box(plotOutput("county_aov_effects", height = 768)),
+                box(plotOutput("county_cor_plot", height = 768)),
+                box("This page includes all counties, not just ones in states that are selected.", width = 12)
             ),
             tabItem(
                 tabName = "data_tables_tab",
-                box(tableOutput("data_us"), status = "primary", title = "National Data Table", solidHeader = TRUE, width = 12),
-                box(tableOutput("data_states"), status = "primary", title = "State Data Table", solidHeader = TRUE, width = 12)
+                box(tableOutput("data_us"), title = "National Data Table", width = 12),
+                box(tableOutput("data_states"), title = "State Data Table", width = 12)
             )
         )
     )
@@ -334,16 +321,18 @@ server <- function(input, output, session) {
                 date,
                 totalTestResults,
                 positive,
-                death
+                death,
+                recovered
             ) %>%
             pivot_longer(
-                cols = c(totalTestResults, positive, death)
+                cols = c(totalTestResults, positive, death, recovered)
             ) %>%
             mutate(
                 name = case_when(
-                    name == "totalTestResults" ~ "Tests",
-                    name == "positive" ~ "Positive Tests",
-                    name == "death" ~ "Deaths",
+                    name == "totalTestResults" ~ "A. Tests",
+                    name == "positive" ~ "B. Positive Tests",
+                    name == "death" ~ "C. Deaths",
+                    name == "recovered" ~ "D. Recovered",
                     TRUE ~ "ERROR"
                 )
             ) %>%
@@ -352,7 +341,7 @@ server <- function(input, output, session) {
             geom_line(size = 1) +
             scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "Count") +
-            facet_wrap(~ fct_rev(name), ncol = 1, scales = "free_y") +
+            facet_wrap(~ name, ncol = 1, scales = "free_y") +
             ggtitle("National Cumulative Totals")
     })
 
@@ -364,16 +353,18 @@ server <- function(input, output, session) {
                 state,
                 totalTestResults,
                 positive,
-                death
+                death,
+                recovered
             ) %>%
             pivot_longer(
-                cols = c(totalTestResults, positive, death)
+                cols = c(totalTestResults, positive, death, recovered)
             ) %>%
             mutate(
                 name = case_when(
-                    name == "totalTestResults" ~ "Tests",
-                    name == "positive" ~ "Positive Tests",
-                    name == "death" ~ "Deaths",
+                    name == "totalTestResults" ~ "A. Tests",
+                    name == "positive" ~ "B. Positive Tests",
+                    name == "death" ~ "C. Deaths",
+                    name == "recovered" ~ "D. Recovered",
                     TRUE ~ "ERROR"
                 )
             ) %>%
@@ -387,7 +378,7 @@ server <- function(input, output, session) {
             geom_line(size = 1) +
             scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "Count", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
-            facet_wrap(~ fct_rev(name), ncol = 1, scales = "free_y") +
+            facet_wrap(~ name, ncol = 1, scales = "free_y") +
             ggtitle("State Cumulative Totals")
     })
     
