@@ -16,7 +16,6 @@ library(corrplot)
 library(choroplethr)
 library(choroplethrMaps)
 
-options(stringsAsFactors = FALSE)
 
 theme_set(theme_ipsum())
 
@@ -697,6 +696,7 @@ server <- function(input, output, session) {
     output$state_positive_heatmap <- renderPlot({
         d <- states_daily %>%
             filter(
+                state %in% states_info$state,
                 positiveIncrease > 0
             ) %>%
             group_by(state) %>%
@@ -705,13 +705,12 @@ server <- function(input, output, session) {
                 dayType = positiveIncrease / positiveIncreaseMax,
                 worstDays = positiveIncrease == positiveIncreaseMax
             ) %>%
-            ungroup() %>%
-            filter(positiveIncreaseMax > 99)
+            ungroup()
         
         worst <- d %>%
             filter(worstDays) %>%
             group_by(state) %>%
-            arrange(date) %>%
+            arrange(desc(date)) %>%
             filter(row_number() == 1) %>%
             ungroup() %>%
             transmute(
@@ -721,8 +720,7 @@ server <- function(input, output, session) {
 
         d %>%
             inner_join(worst) %>%
-            mutate(daynumber = as.integer(date - worstdate, "days")) %>%
-            ggplot(aes(x = daynumber, y = fct_reorder(state, desc(worstdate)), fill = dayType)) +
+            ggplot(aes(x = date, y = fct_reorder(state, desc(worstdate)), fill = dayType)) +
             geom_hline(
                 data = d %>%
                     filter(state %in% toupper(input$statepicker)),
@@ -730,14 +728,16 @@ server <- function(input, output, session) {
                 size = 1
             ) +
             geom_tile(color = "white") +
+            geom_point(aes(x = worstdate), color = "white") +
             scale_fill_viridis_c(labels = scales::percent, direction = -1, option = "B") +
-            labs(x = "Day", y = "State", fill = "", color = "", caption = "Day 0 is each state's worst day.") +
+            labs(x = "Date", y = "States ordered by days since worst count", fill = "", color = "") +
             ggtitle("Positive Tests per Day as percent of Highest Single Day Count")
     })
 
     output$state_death_heatmap <- renderPlot({
         d <- states_daily %>%
             filter(
+                state %in% states_info$state,
                 deathIncrease > 0
             ) %>%
             group_by(state) %>%
@@ -746,13 +746,12 @@ server <- function(input, output, session) {
                 dayType = deathIncrease / deathIncreaseMax,
                 worstDays = deathIncrease == deathIncreaseMax
             ) %>%
-            ungroup() %>%
-            filter(deathIncreaseMax > 9)
+            ungroup()
         
         worst <- d %>%
             filter(worstDays) %>%
             group_by(state) %>%
-            arrange(date) %>%
+            arrange(desc(date)) %>%
             filter(row_number() == 1) %>%
             ungroup() %>%
             transmute(
@@ -762,8 +761,7 @@ server <- function(input, output, session) {
         
         d %>%
             inner_join(worst) %>%
-            mutate(daynumber = as.integer(date - worstdate, "days")) %>%
-            ggplot(aes(x = daynumber, y = fct_reorder(state, desc(worstdate)), fill = dayType)) +
+            ggplot(aes(x = date, y = fct_reorder(state, desc(worstdate)), fill = dayType)) +
             geom_hline(
                 data = d %>%
                     filter(state %in% toupper(input$statepicker)),
@@ -771,8 +769,9 @@ server <- function(input, output, session) {
                 size = 1
             ) +
             geom_tile(color = "white") +
+            geom_point(aes(x = worstdate), color = "white") +
             scale_fill_viridis_c(labels = scales::percent, direction = -1, option = "B") +
-            labs(x = "Day", y = "State", fill = "", color = "", caption = "Day 0 is each state's worst day.") +
+            labs(x = "Date", y = "States ordered by days since worst count", fill = "", color = "") +
             ggtitle("Deaths per Day as percent of Highest Single Day Count")
     })
     
