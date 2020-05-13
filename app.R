@@ -523,8 +523,7 @@ server <- function(input, output, session) {
         us_daily %>%
             ggplot(aes(x = date, y = hospitalizedCurrently)) +
             geom_hline(yintercept = 0, color = "dimgray") +
-            geom_line() +
-            geom_smooth(se = input$inc_se) +
+            geom_line(size = 1) +
             scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "Currently Hospitalized") +
             ggtitle("Daily National Currently Hospitalized")
@@ -534,8 +533,7 @@ server <- function(input, output, session) {
         us_daily %>%
             ggplot(aes(x = date, y = inIcuCurrently)) +
             geom_hline(yintercept = 0, color = "dimgray") +
-            geom_line() +
-            geom_smooth(se = input$inc_se) +
+            geom_line(size = 1) +
             scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "Currently in ICU") +
             ggtitle("Daily National Currently in ICU")
@@ -545,8 +543,7 @@ server <- function(input, output, session) {
         us_daily %>%
             ggplot(aes(x = date, y = onVentilatorCurrently)) +
             geom_hline(yintercept = 0, color = "dimgray") +
-            geom_line() +
-            geom_smooth(se = input$inc_se) +
+            geom_line(size = 1) +
             scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "Currently on Ventilator") +
             ggtitle("Daily National Currently on Ventilator")
@@ -562,8 +559,7 @@ server <- function(input, output, session) {
                     filter(StateCode %in% toupper(input$statepicker)),
                 aes(xintercept = `Effective Date`, color = StateCode)
             ) +
-            geom_line() +
-            geom_smooth(se = input$inc_se) +
+            geom_line(size = 1) +
             scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "Currently Hospitalized", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
             ggtitle("Daily State Currently Hospitalized")
@@ -579,8 +575,7 @@ server <- function(input, output, session) {
                     filter(StateCode %in% toupper(input$statepicker)),
                 aes(xintercept = `Effective Date`, color = StateCode)
             ) +
-            geom_line() +
-            geom_smooth(se = input$inc_se) +
+            geom_line(size = 1) +
             scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "Currently in ICU", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
             ggtitle("Daily State Currently in ICU")
@@ -596,8 +591,7 @@ server <- function(input, output, session) {
                     filter(StateCode %in% toupper(input$statepicker)),
                 aes(xintercept = `Effective Date`, color = StateCode)
             ) +
-            geom_line() +
-            geom_smooth(se = input$inc_se) +
+            geom_line(size = 1) +
             scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "Currently on Ventilator", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
             ggtitle("Daily State Currently on Ventilator")
@@ -614,8 +608,7 @@ server <- function(input, output, session) {
                     filter(StateCode %in% toupper(input$statepicker)),
                 aes(xintercept = `Effective Date`, color = StateCode)
             ) +
-            geom_line() +
-            geom_smooth(se = input$inc_se) +
+            geom_line(size = 1) +
             scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "Hospitalized / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
             ggtitle("Daily State Currently Hospitalized / 100k people")
@@ -632,8 +625,7 @@ server <- function(input, output, session) {
                     filter(StateCode %in% toupper(input$statepicker)),
                 aes(xintercept = `Effective Date`, color = StateCode)
             ) +
-            geom_line() +
-            geom_smooth(se = input$inc_se) +
+            geom_line(size = 1) +
             scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "Currently in ICU / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
             ggtitle("Daily State Currently in ICU / 100k people")
@@ -650,8 +642,7 @@ server <- function(input, output, session) {
                     filter(StateCode %in% toupper(input$statepicker)),
                 aes(xintercept = `Effective Date`, color = StateCode)
             ) +
-            geom_line() +
-            geom_smooth(se = input$inc_se) +
+            geom_line(size = 1) +
             scale_y_continuous(labels = scales::comma) +
             labs(x = "Date", y = "Currently on Ventilator / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
             ggtitle("Daily State Currently on Ventilator / 100k people")
