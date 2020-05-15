@@ -1,15 +1,10 @@
 
-library(dplyr)
-library(tidyr)
-library(forcats)
-library(readr)
-library(stringr)
-library(ggplot2)
-library(gghighlight)
+library(tidyverse)
+library(lubridate)
 library(rvest)
-library(anytime)
 library(shiny)
 library(shinydashboard)
+library(gghighlight)
 library(effects)
 library(corrplot)
 library(choroplethr)
@@ -19,12 +14,23 @@ library(choroplethrMaps)
 data("df_pop_state")
 data("df_county_demographics")
 
+
 us_current <- read_csv("https://covidtracking.com/api/v1/us/current.csv")
 
 us_daily <- read_csv("https://covidtracking.com/api/v1/us/daily.csv") %>%
-  mutate(date = anydate(date))
+  mutate(date = ymd(date))
 
 states_info <- read_csv("https://covidtracking.com/api/v1/states/info.csv")
+
+states_current <- read_csv("https://covidtracking.com/api/v1/states/current.csv")
+
+states_daily <- read_csv("https://covidtracking.com/api/v1/states/daily.csv") %>%
+  mutate(date = ymd(date))
+
+rt_data <- read_csv("https://d14wlfuexuxgcm.cloudfront.net/covid/rt.csv")
+
+raw_county_data <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+
 
 df_pop_state2 <- states_info %>%
   inner_join(
@@ -36,40 +42,6 @@ df_pop_state2 <- states_info %>%
     name,
     pop = value
   )
-
-states_current <- read_csv("https://covidtracking.com/api/v1/states/current.csv")
-
-states_daily <- read_csv("https://covidtracking.com/api/v1/states/daily.csv") %>%
-  mutate(date = anydate(date))
-
-stayhomepage <- read_html("https://www.littler.com/publication-press/publication/stay-top-stay-home-list-statewide")
-stayhometable <- html_table(stayhomepage)[[1]]
-colnames(stayhometable) <- as.character(stayhometable[1, ])
-stayhometable <- tail(stayhometable, -1)
-stayhometable$`Effective Date` <- anydate(stayhometable$`Effective Date`)
-stayhometable$`Duration or End Date` <- anydate(stayhometable$`Duration or End Date`)
-
-stayhometable <- stayhometable %>%
-  mutate(
-    State = case_when(
-      State == "District of Columbia" ~ "District Of Columbia",
-      State == "Massachusetts*" ~ "Massachusetts",
-      State == "Missouri1" ~ "Missouri",
-      State == "Oklahoma – for vulnerable individuals only" ~ "Oklahoma",
-      State == "Washington State" ~ "Washington",
-      TRUE ~ State
-    )
-  )
-
-stayhometable <- stayhometable %>%
-  inner_join(
-    states_info %>%
-      transmute(StateCode = state, State = name)
-  )
-
-rt_data <- read_csv("https://d14wlfuexuxgcm.cloudfront.net/covid/rt.csv")
-
-raw_county_data <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
 
 all_county_data <- raw_county_data %>%
   filter(!is.na(fips)) %>%
@@ -116,6 +88,7 @@ model_deaths_input <- all_county_data %>%
     `Asian` = percent_asian
   )
 
+
 model_deaths_cor <- cor(model_deaths_input)
 model_deaths_cor_mtest <- cor.mtest(model_deaths_input)
 
@@ -146,7 +119,6 @@ ui <- dashboardPage(
       menuItem(text = "Daily State Rt", tabName = "state_rt_tab"),
       menuItem(text = "Positive Tests Heatmap", tabName = "heatmaps_positive_tab"),
       menuItem(text = "Deaths Heatmap", tabName = "heatmaps_death_tab"),
-      menuItem(text = "Stay At Home Orders", tabName = "stayhome_tab"),
       menuItem(
         text = "Maps",
         menuSubItem(text = "State Percentages", tabName = "state_percent_tab"),
@@ -265,10 +237,6 @@ ui <- dashboardPage(
         box(plotOutput("state_death_heatmap", height = 768), status = "danger", width = 12)
       ),
       tabItem(
-        tabName = "stayhome_tab",
-        box(plotOutput("stayhome_chart", height = 768), width = 12)
-      ),
-      tabItem(
         tabName = "state_percent_tab",
         box(plotOutput("percent_tests_map")),
         box(plotOutput("pos_tests_map"), status = "warning"),
@@ -368,11 +336,6 @@ server <- function(input, output, session) {
       ) %>%
       ggplot(aes(x = date, y = value, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Count", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
@@ -418,11 +381,6 @@ server <- function(input, output, session) {
       filter(state %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = date, y = totalTestResultsIncrease, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
@@ -435,11 +393,6 @@ server <- function(input, output, session) {
       filter(state %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = date, y = positiveIncrease, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
@@ -452,11 +405,6 @@ server <- function(input, output, session) {
       filter(state %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = date, y = deathIncrease, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
@@ -470,11 +418,6 @@ server <- function(input, output, session) {
       inner_join(df_pop_state2) %>%
       ggplot(aes(x = date, y = 100000 * totalTestResultsIncrease / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
@@ -488,11 +431,6 @@ server <- function(input, output, session) {
       inner_join(df_pop_state2) %>%
       ggplot(aes(x = date, y = 100000 * positiveIncrease / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
@@ -506,11 +444,6 @@ server <- function(input, output, session) {
       inner_join(df_pop_state2) %>%
       ggplot(aes(x = date, y = 100000 * deathIncrease / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
@@ -553,11 +486,6 @@ server <- function(input, output, session) {
       filter(state %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = date, y = hospitalizedCurrently, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Currently Hospitalized", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
@@ -569,11 +497,6 @@ server <- function(input, output, session) {
       filter(state %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = date, y = inIcuCurrently, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Currently in ICU", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
@@ -585,11 +508,6 @@ server <- function(input, output, session) {
       filter(state %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = date, y = onVentilatorCurrently, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Currently on Ventilator", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
@@ -602,11 +520,6 @@ server <- function(input, output, session) {
       inner_join(df_pop_state2) %>%
       ggplot(aes(x = date, y = 100000 * hospitalizedCurrently / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Hospitalized / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
@@ -619,11 +532,6 @@ server <- function(input, output, session) {
       inner_join(df_pop_state2) %>%
       ggplot(aes(x = date, y = 100000 * inIcuCurrently / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Currently in ICU / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
@@ -636,11 +544,6 @@ server <- function(input, output, session) {
       inner_join(df_pop_state2) %>%
       ggplot(aes(x = date, y = 100000 * onVentilatorCurrently / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Currently on Ventilator / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
@@ -651,11 +554,6 @@ server <- function(input, output, session) {
     rt_data %>%
       ggplot(aes(x = as.Date(date), y = mean, color = region)) +
       geom_hline(yintercept = 1, color = "dimgray") +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line(size = 1) +
       gghighlight(
         region %in% toupper(input$statepicker),
@@ -668,11 +566,6 @@ server <- function(input, output, session) {
   output$state_rtcases_chart <- renderPlot({
     rt_data %>%
       ggplot(aes(x = as.Date(date), y = new_cases, color = region)) +
-      geom_vline(
-        data = stayhometable %>%
-          filter(StateCode %in% toupper(input$statepicker)),
-        aes(xintercept = `Effective Date`, color = StateCode)
-      ) +
       geom_line(size = 1) +
       gghighlight(
         region %in% toupper(input$statepicker),
@@ -763,22 +656,6 @@ server <- function(input, output, session) {
       scale_fill_viridis_c(labels = scales::percent, direction = -1, option = "B") +
       labs(x = "Date", y = "States ordered by days since worst count", fill = "", color = "") +
       ggtitle("Deaths per Day as percent of Highest Single Day Count")
-  })
-
-  output$stayhome_chart <- renderPlot({
-    stayhometable %>%
-      ggplot(aes(
-        x = `Effective Date`,
-        y = fct_reorder(factor(State), `Effective Date`, .desc = TRUE),
-        xend = `Duration or End Date`,
-        yend = fct_reorder(factor(State), `Effective Date`, .desc = TRUE),
-        color = fct_rev(ifelse(is.na(`Duration or End Date`), "Yes", "No"))
-      )) +
-      geom_vline(xintercept = Sys.Date()) +
-      geom_point(size = 4) +
-      geom_segment(arrow = arrow()) +
-      labs(x = "Date", y = "State", color = "Open Ended", caption = "Vertical line represents today.") +
-      ggtitle("Stay At Home Orders")
   })
 
   output$cap_cases_map <- renderPlot({
