@@ -102,7 +102,6 @@ model_deaths_effects <- allEffects(model_deaths_aov)
 
 ui <- dashboardPage(
   header = dashboardHeader(title = "COVID-19"),
-  title = "COVID-19",
   sidebar = dashboardSidebar(
     sidebarMenu(
       menuItem(text = "About", tabName = "about_tab"),
@@ -164,10 +163,6 @@ ui <- dashboardPage(
           title = "Rt Data Source"
         ),
         box(
-          "State level data about governors' Stay Home orders is downloaded from https://www.littler.com/publication-press/publication/stay-top-stay-home-list-statewide",
-          title = "Stay Home Orders Data Source"
-        ),
-        box(
           "Demographics data is pulled from the 2012 US American Community Survey (ACS) 5 year estimates included in the 'choroplethr' R package.",
           title = "Demographics Data Source"
         ),
@@ -177,7 +172,7 @@ ui <- dashboardPage(
           status = "success"
         ),
         box(
-          "The source code is available at https://github.com/lab1702/coviddash",
+          "The source code for this R/Shiny app is available at https://github.com/lab1702/coviddash",
           title = "Source Code"
         )
       ),
@@ -338,7 +333,7 @@ server <- function(input, output, session) {
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "Count", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Count", color = "State") +
       facet_wrap(~name, ncol = 1, scales = "free_y") +
       ggtitle("State Cumulative Totals")
   })
@@ -384,7 +379,7 @@ server <- function(input, output, session) {
       geom_line() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "Tests", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Tests", color = "State") +
       ggtitle("Daily State Tests")
   })
 
@@ -396,7 +391,7 @@ server <- function(input, output, session) {
       geom_line() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "Positive Tests", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Positive Tests", color = "State") +
       ggtitle("Daily State Positive Tests")
   })
 
@@ -408,7 +403,7 @@ server <- function(input, output, session) {
       geom_line() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "Deaths", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Deaths", color = "State") +
       ggtitle("Daily State Deaths")
   })
 
@@ -421,7 +416,7 @@ server <- function(input, output, session) {
       geom_line() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "Tests / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Tests / 100k", color = "State") +
       ggtitle("Daily State Tests / 100k people")
   })
 
@@ -434,7 +429,7 @@ server <- function(input, output, session) {
       geom_line() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "Positive Tests / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Positive Tests / 100k", color = "State") +
       ggtitle("Daily State Positive Tests / 100k people")
   })
 
@@ -447,7 +442,7 @@ server <- function(input, output, session) {
       geom_line() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "Deaths / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Deaths / 100k", color = "State") +
       ggtitle("Daily State Deaths / 100k people")
   })
 
@@ -488,7 +483,7 @@ server <- function(input, output, session) {
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "Currently Hospitalized", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Currently Hospitalized", color = "State") +
       ggtitle("Daily State Currently Hospitalized")
   })
 
@@ -499,7 +494,7 @@ server <- function(input, output, session) {
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "Currently in ICU", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Currently in ICU", color = "State") +
       ggtitle("Daily State Currently in ICU")
   })
 
@@ -510,7 +505,7 @@ server <- function(input, output, session) {
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "Currently on Ventilator", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Currently on Ventilator", color = "State") +
       ggtitle("Daily State Currently on Ventilator")
   })
 
@@ -522,7 +517,7 @@ server <- function(input, output, session) {
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "Hospitalized / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Hospitalized / 100k", color = "State") +
       ggtitle("Daily State Currently Hospitalized / 100k people")
   })
 
@@ -534,7 +529,7 @@ server <- function(input, output, session) {
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "Currently in ICU / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Currently in ICU / 100k", color = "State") +
       ggtitle("Daily State Currently in ICU / 100k people")
   })
 
@@ -546,7 +541,7 @@ server <- function(input, output, session) {
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_line(size = 1) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "Currently on Ventilator / 100k", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Currently on Ventilator / 100k", color = "State") +
       ggtitle("Daily State Currently on Ventilator / 100k people")
   })
 
@@ -559,7 +554,7 @@ server <- function(input, output, session) {
         region %in% toupper(input$statepicker),
         unhighlighted_params = list(alpha = 0.5, size = 0.5)
       ) +
-      labs(x = "Date", y = "Rt", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "Rt", color = "State") +
       ggtitle("Daily State Rt")
   })
 
@@ -572,7 +567,7 @@ server <- function(input, output, session) {
         unhighlighted_params = list(alpha = 0.5, size = 0.5)
       ) +
       scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "New Cases", color = "State", caption = "Vertical lines represent Stay Home Orders.") +
+      labs(x = "Date", y = "New Cases", color = "State") +
       ggtitle("Daily State New Cases")
   })
 
