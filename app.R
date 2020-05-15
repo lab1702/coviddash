@@ -4,7 +4,6 @@ library(lubridate)
 library(rvest)
 library(shiny)
 library(shinydashboard)
-library(gghighlight)
 library(effects)
 library(corrplot)
 library(choroplethr)
@@ -547,25 +546,21 @@ server <- function(input, output, session) {
 
   output$state_rt_chart <- renderPlot({
     rt_data %>%
+      filter(region %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = as.Date(date), y = mean, color = region)) +
       geom_hline(yintercept = 1, color = "dimgray") +
       geom_line(size = 1) +
-      gghighlight(
-        region %in% toupper(input$statepicker),
-        unhighlighted_params = list(alpha = 0.5, size = 0.5)
-      ) +
       labs(x = "Date", y = "Rt", color = "State") +
       ggtitle("Daily State Rt")
   })
 
   output$state_rtcases_chart <- renderPlot({
     rt_data %>%
+      filter(region %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = as.Date(date), y = new_cases, color = region)) +
-      geom_line(size = 1) +
-      gghighlight(
-        region %in% toupper(input$statepicker),
-        unhighlighted_params = list(alpha = 0.5, size = 0.5)
-      ) +
+      geom_hline(yintercept = 1, color = "dimgray") +
+      geom_line() +
+      geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "New Cases", color = "State") +
       ggtitle("Daily State New Cases")
