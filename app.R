@@ -105,6 +105,7 @@ ui <- dashboardPage(
     sidebarMenu(
       menuItem(text = "About", tabName = "about_tab"),
       menuItem(text = "Cumulative Counts", tabName = "total_tab"),
+      menuItem(text = "Cumulative Percentages", tabName = "perc_tab"),
       menuItem(
         text = "Daily Counts",
         menuSubItem(text = "National", tabName = "us_charts_tab"),
@@ -179,6 +180,13 @@ ui <- dashboardPage(
         tabName = "total_tab",
         box(plotOutput("us_total_chart", height = 768)),
         box(plotOutput("state_total_chart", height = 768))
+      ),
+      tabItem(
+        tabName = "perc_tab",
+        box(plotOutput("us_perc_pos_chart"), status = "warning"),
+        box(plotOutput("us_perc_mort_chart"), status = "danger"),
+        box(plotOutput("state_perc_pos_chart"), status = "warning"),
+        box(plotOutput("state_perc_mort_chart"), status = "danger")
       ),
       tabItem(
         tabName = "us_charts_tab",
@@ -335,6 +343,94 @@ server <- function(input, output, session) {
       labs(x = "Date", y = "Count", color = "State") +
       facet_wrap(~name, ncol = 1, scales = "free_y") +
       ggtitle("State Cumulative Totals")
+  })
+
+  output$us_perc_pos_chart <- renderPlot({
+    us_daily %>%
+      select(
+        date,
+        totalTestResults,
+        positive
+      ) %>%
+      filter(
+        date >= "2020-04-01"
+      ) %>%
+      mutate(
+        value = positive / totalTestResults
+      ) %>%
+      ggplot(aes(x = date, y = value)) +
+      geom_hline(yintercept = 0, color = "dimgray") +
+      geom_line(size = 1) +
+      scale_y_continuous(labels = scales::percent) +
+      labs(x = "Date", y = "% Positive Tests") +
+      ggtitle("National Cumulative % Positive Tests")
+  })
+
+  output$us_perc_mort_chart <- renderPlot({
+    us_daily %>%
+      select(
+        date,
+        positive,
+        death
+      ) %>%
+      filter(
+        date >= "2020-04-01"
+      ) %>%
+      mutate(
+        value = death / positive
+      ) %>%
+      ggplot(aes(x = date, y = value)) +
+      geom_hline(yintercept = 0, color = "dimgray") +
+      geom_line(size = 1) +
+      scale_y_continuous(labels = scales::percent) +
+      labs(x = "Date", y = "% Deaths per Positive Tests") +
+      ggtitle("National Cumulative % Deaths per Positive Tests")
+  })
+
+  output$state_perc_pos_chart <- renderPlot({
+    states_daily %>%
+      filter(state %in% toupper(input$statepicker)) %>%
+      select(
+        date,
+        state,
+        totalTestResults,
+        positive
+      ) %>%
+      filter(
+        date >= "2020-04-01"
+      ) %>%
+      mutate(
+        value = positive / totalTestResults
+      ) %>%
+      ggplot(aes(x = date, y = value, color = state)) +
+      geom_hline(yintercept = 0, color = "dimgray") +
+      geom_line(size = 1) +
+      scale_y_continuous(labels = scales::percent) +
+      labs(x = "Date", y = "% Positive Tests") +
+      ggtitle("State Cumulative % Positive Tests")
+  })
+  
+  output$state_perc_mort_chart <- renderPlot({
+    states_daily %>%
+      filter(state %in% toupper(input$statepicker)) %>%
+      select(
+        date,
+        state,
+        positive,
+        death
+      ) %>%
+      filter(
+        date >= "2020-04-01"
+      ) %>%
+      mutate(
+        value = death / positive
+      ) %>%
+      ggplot(aes(x = date, y = value, color = state)) +
+      geom_hline(yintercept = 0, color = "dimgray") +
+      geom_line(size = 1) +
+      scale_y_continuous(labels = scales::percent) +
+      labs(x = "Date", y = "% Deaths per Positive Tests") +
+      ggtitle("State Cumulative % Deaths per Positive Tests")
   })
 
   output$us_tests_chart <- renderPlot({
