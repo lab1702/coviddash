@@ -8,6 +8,7 @@ library(effects)
 library(corrplot)
 library(choroplethr)
 library(choroplethrMaps)
+library(plotly)
 
 
 data("df_pop_state")
@@ -126,6 +127,8 @@ ui <- dashboardPage(
         menuSubItem(text = "Selected Counties", tabName = "county_capita_tab")
       ),
       menuItem(text = "Demographics", tabName = "county_aov_tab"),
+      menuItem(text = "State 3D Chart", tabName = "state_3d_tab"),
+      menuItem(text = "County 3D Chart", tabName = "county_3d_tab"),
       menuItem(text = "Data Tables", tabName = "data_tables_tab")
     ),
     selectInput(
@@ -273,6 +276,28 @@ ui <- dashboardPage(
         box("This page includes all counties, not just ones in states that are selected.", width = 12)
       ),
       tabItem(
+        tabName = "state_3d_tab",
+        box(plotlyOutput("state_3d_chart1", height = 768)),
+        box(plotlyOutput("state_3d_chart2", height = 768)),
+        box("This page is under construction and problems are to be expected. Click and drag to rotate.", width = 12)
+      ),
+      tabItem(
+        tabName = "county_3d_tab",
+        box(
+          selectInput(
+            inputId = "state3d_select",
+            label = "Select State",
+            choices = sort(unique(raw_county_data$state)),
+            selected = "Michigan",
+            selectize = FALSE
+          ),
+          width = 12
+        ),
+        box(plotlyOutput("county_3d_chart1", height = 700)),
+        box(plotlyOutput("county_3d_chart2", height = 700)),
+        box("This page is under construction and problems are to be expected. Click and drag to rotate.", width = 12)
+      ),
+      tabItem(
         tabName = "data_tables_tab",
         box(tableOutput("data_us"), title = "National Data Table", width = 12),
         box(tableOutput("data_states"), title = "State Data Table", width = 12)
@@ -409,7 +434,7 @@ server <- function(input, output, session) {
       labs(x = "Date", y = "% Positive Tests") +
       ggtitle("State Cumulative % Positive Tests")
   })
-  
+
   output$state_perc_mort_chart <- renderPlot({
     states_daily %>%
       filter(state %in% toupper(input$statepicker)) %>%
@@ -1040,6 +1065,86 @@ server <- function(input, output, session) {
     striped = TRUE,
     bordered = TRUE
   )
+
+  output$county_3d_chart1 <- renderPlotly({
+    temp_data <- raw_county_data %>%
+      filter(state == input$state3d_select) %>%
+      group_by(county) %>%
+      arrange(date) %>%
+      mutate(cases = c(min(cases), diff(cases))) %>%
+      ungroup() %>%
+      arrange(county, date)
+
+    temp_data %>%
+      plot_ly(
+        x = ~county,
+        y = ~date,
+        z = ~cases,
+        intensity = ~cases,
+        type = "mesh3d"
+      ) %>%
+      layout(
+        title = list(text = "Cases by County")
+      ) %>%
+      config(displayModeBar = FALSE)
+  })
+
+  output$county_3d_chart2 <- renderPlotly({
+    temp_data <- raw_county_data %>%
+      filter(state == input$state3d_select) %>%
+      group_by(county) %>%
+      arrange(date) %>%
+      mutate(deaths = c(min(deaths), diff(deaths))) %>%
+      ungroup() %>%
+      arrange(county, date)
+
+    temp_data %>%
+      plot_ly(
+        x = ~county,
+        y = ~date,
+        z = ~deaths,
+        intensity = ~deaths,
+        type = "mesh3d"
+      ) %>%
+      layout(
+        title = list(text = "Deaths by County")
+      ) %>%
+      config(displayModeBar = FALSE)
+  })
+
+  output$state_3d_chart1 <- renderPlotly({
+    states_daily %>%
+      filter(date >= "2020-03-01") %>%
+      arrange(state, date) %>%
+      plot_ly(
+        x = ~state,
+        y = ~date,
+        z = ~positiveIncrease,
+        intensity = ~positiveIncrease,
+        type = "mesh3d"
+      ) %>%
+      layout(
+        title = list(text = "Positive Tests by State")
+      ) %>%
+      config(displayModeBar = FALSE)
+  })
+
+  output$state_3d_chart2 <- renderPlotly({
+    states_daily %>%
+      filter(date >= "2020-03-01") %>%
+      arrange(state, date) %>%
+      plot_ly(
+        x = ~state,
+        y = ~date,
+        z = ~deathIncrease,
+        intensity = ~deathIncrease,
+        type = "mesh3d"
+      ) %>%
+      layout(
+        title = list(text = "Deaths by State")
+      ) %>%
+      config(displayModeBar = FALSE)
+  })
 
   output$data_us <- renderTable(
     {
