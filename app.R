@@ -4,8 +4,6 @@ library(lubridate)
 library(rvest)
 library(shiny)
 library(shinydashboard)
-library(effects)
-library(corrplot)
 library(choroplethr)
 library(choroplethrMaps)
 library(plotly)
@@ -76,29 +74,6 @@ county_data_deaths <- all_county_data %>%
     mort = deaths / cases
   )
 
-model_deaths_input <- all_county_data %>%
-  transmute(
-    `Dead/100k` = 100000 * deaths / total_population,
-    `Age` = median_age,
-    `Income` = per_capita_income,
-    `Rent` = median_rent,
-    `White` = percent_white,
-    `Black` = percent_black,
-    `Hispanic` = percent_hispanic,
-    `Asian` = percent_asian
-  )
-
-
-model_deaths_cor <- cor(model_deaths_input)
-model_deaths_cor_mtest <- cor.mtest(model_deaths_input)
-
-model_deaths_aov <- aov(
-  `Dead/100k` ~ .,
-  data = model_deaths_input
-)
-
-model_deaths_effects <- allEffects(model_deaths_aov)
-
 
 ui <- dashboardPage(
   header = dashboardHeader(title = "COVID-19"),
@@ -126,7 +101,6 @@ ui <- dashboardPage(
         menuSubItem(text = "All Counties", tabName = "county_natcapita_tab"),
         menuSubItem(text = "Selected Counties", tabName = "county_capita_tab")
       ),
-      menuItem(text = "Demographics", tabName = "county_aov_tab"),
       menuItem(text = "State 3D Chart", tabName = "state_3d_tab"),
       menuItem(text = "County 3D Chart", tabName = "county_3d_tab"),
       menuItem(text = "Data Tables", tabName = "data_tables_tab")
@@ -166,8 +140,8 @@ ui <- dashboardPage(
           title = "Rt Data Source"
         ),
         box(
-          "Demographics data is pulled from the 2012 US American Community Survey (ACS) 5 year estimates included in the 'choroplethr' R package.",
-          title = "Demographics Data Source"
+          "Population data is pulled from the 2012 US American Community Survey (ACS) 5 year estimates included in the 'choroplethr' R package.",
+          title = "Population Data Source"
         ),
         box(
           "Please consider helping the Folding@home project by installing the software from https://foldingathome.org which lets you share unused computer time with COVID-19 (and other) researchers around the world.",
@@ -1154,7 +1128,7 @@ server <- function(input, output, session) {
           Positive = scales::comma(positive),
           Deaths = scales::comma(death),
           Recovered = scales::comma(recovered),
-          Modified = lastModified
+          Modified = as.character(lastModified)
         )
     },
     striped = TRUE,
@@ -1179,21 +1153,6 @@ server <- function(input, output, session) {
     striped = TRUE,
     bordered = TRUE
   )
-
-  output$county_aov_effects <- renderPlot({
-    plot(
-      model_deaths_effects,
-      rotx = 90
-    )
-  })
-
-  output$county_cor_plot <- renderPlot({
-    corrplot.mixed(
-      corr = model_deaths_cor,
-      p.mat = model_deaths_cor_mtest$p,
-      main = "\nDemographic Correlations"
-    )
-  })
 }
 
 shinyApp(ui = ui, server = server)
