@@ -154,12 +154,16 @@ ui <- dashboardPage(
           title = "County Data Source"
         ),
         box(
-          "Rt data is downloaded from https://rt.live",
+          "Rt data is downloaded from https://d14wlfuexuxgcm.cloudfront.net/covid/rt.csv which is used by https://rt.live",
           title = "Rt Data Source"
         ),
         box(
           "Population data is pulled from the 2012 US American Community Survey (ACS) 5 year estimates included in the 'choroplethr' R package.",
           title = "Population Data Source"
+        ),
+        box(
+          "The inspiration for the 3D charts came from the 'Dr. Frank Models' Facebook group which can be found at https://www.facebook.com/groups/158015618707622",
+          title = "3D Charts"
         ),
         box(
           "Please consider helping the Folding@home project by installing the software from https://foldingathome.org which lets you share unused computer time with COVID-19 (and other) researchers around the world.",
@@ -298,7 +302,7 @@ server <- function(input, output, session) {
       ) %>%
       ggplot(aes(x = date, y = value)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Count") +
       facet_wrap(~name, ncol = 1, scales = "free_y") +
@@ -330,7 +334,7 @@ server <- function(input, output, session) {
       ) %>%
       ggplot(aes(x = date, y = value, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Count", color = "State") +
       facet_wrap(~name, ncol = 1, scales = "free_y") +
@@ -345,17 +349,16 @@ server <- function(input, output, session) {
         positive
       ) %>%
       filter(
-        date >= "2020-04-01"
+        date > Sys.Date() - 90
       ) %>%
       mutate(
         value = positive / totalTestResults
       ) %>%
       ggplot(aes(x = date, y = value)) +
-      geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::percent) +
       labs(x = "Date", y = "% Positive Tests") +
-      ggtitle("National Cumulative % Positive Tests")
+      ggtitle("90 Day National Cumulative % Positive Tests")
   })
 
   output$us_perc_mort_chart <- renderPlot({
@@ -366,17 +369,16 @@ server <- function(input, output, session) {
         death
       ) %>%
       filter(
-        date >= "2020-04-01"
+        date > Sys.Date() - 90
       ) %>%
       mutate(
         value = death / positive
       ) %>%
       ggplot(aes(x = date, y = value)) +
-      geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::percent) +
       labs(x = "Date", y = "% Deaths per Positive Tests") +
-      ggtitle("National Cumulative % Deaths per Positive Tests")
+      ggtitle("90 Day National Cumulative % Deaths per Positive Tests")
   })
 
   output$state_perc_pos_chart <- renderPlot({
@@ -389,17 +391,16 @@ server <- function(input, output, session) {
         positive
       ) %>%
       filter(
-        date >= "2020-04-01"
+        date > Sys.Date() - 90
       ) %>%
       mutate(
         value = positive / totalTestResults
       ) %>%
       ggplot(aes(x = date, y = value, color = state)) +
-      geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::percent) +
       labs(x = "Date", y = "% Positive Tests") +
-      ggtitle("State Cumulative % Positive Tests")
+      ggtitle("90 Day State Cumulative % Positive Tests")
   })
 
   output$state_perc_mort_chart <- renderPlot({
@@ -412,24 +413,23 @@ server <- function(input, output, session) {
         death
       ) %>%
       filter(
-        date >= "2020-04-01"
+        date >= Sys.Date() - 90
       ) %>%
       mutate(
         value = death / positive
       ) %>%
       ggplot(aes(x = date, y = value, color = state)) +
-      geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::percent) +
       labs(x = "Date", y = "% Deaths per Positive Tests") +
-      ggtitle("State Cumulative % Deaths per Positive Tests")
+      ggtitle("90 Day State Cumulative % Deaths per Positive Tests")
   })
 
   output$us_tests_chart <- renderPlot({
     us_daily %>%
       ggplot(aes(x = date, y = totalTestResultsIncrease)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line() +
+      geom_point() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Tests") +
@@ -440,7 +440,7 @@ server <- function(input, output, session) {
     us_daily %>%
       ggplot(aes(x = date, y = positiveIncrease)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line() +
+      geom_point() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Positive Tests") +
@@ -451,7 +451,7 @@ server <- function(input, output, session) {
     us_daily %>%
       ggplot(aes(x = date, y = deathIncrease)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line() +
+      geom_point() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Deaths") +
@@ -463,7 +463,7 @@ server <- function(input, output, session) {
       filter(state %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = date, y = totalTestResultsIncrease, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line() +
+      geom_point() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Tests", color = "State") +
@@ -475,7 +475,7 @@ server <- function(input, output, session) {
       filter(state %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = date, y = positiveIncrease, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line() +
+      geom_point() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Positive Tests", color = "State") +
@@ -487,7 +487,7 @@ server <- function(input, output, session) {
       filter(state %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = date, y = deathIncrease, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line() +
+      geom_point() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Deaths", color = "State") +
@@ -500,7 +500,7 @@ server <- function(input, output, session) {
       inner_join(df_pop_state2) %>%
       ggplot(aes(x = date, y = 100000 * totalTestResultsIncrease / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line() +
+      geom_point() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Tests / 100k", color = "State") +
@@ -513,7 +513,7 @@ server <- function(input, output, session) {
       inner_join(df_pop_state2) %>%
       ggplot(aes(x = date, y = 100000 * positiveIncrease / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line() +
+      geom_point() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Positive Tests / 100k", color = "State") +
@@ -526,7 +526,7 @@ server <- function(input, output, session) {
       inner_join(df_pop_state2) %>%
       ggplot(aes(x = date, y = 100000 * deathIncrease / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line() +
+      geom_point() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Deaths / 100k", color = "State") +
@@ -537,7 +537,7 @@ server <- function(input, output, session) {
     us_daily %>%
       ggplot(aes(x = date, y = hospitalizedCurrently)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Currently Hospitalized") +
       ggtitle("Daily National Currently Hospitalized")
@@ -547,7 +547,7 @@ server <- function(input, output, session) {
     us_daily %>%
       ggplot(aes(x = date, y = inIcuCurrently)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Currently in ICU") +
       ggtitle("Daily National Currently in ICU")
@@ -557,7 +557,7 @@ server <- function(input, output, session) {
     us_daily %>%
       ggplot(aes(x = date, y = onVentilatorCurrently)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Currently on Ventilator") +
       ggtitle("Daily National Currently on Ventilator")
@@ -568,7 +568,7 @@ server <- function(input, output, session) {
       filter(state %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = date, y = hospitalizedCurrently, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Currently Hospitalized", color = "State") +
       ggtitle("Daily State Currently Hospitalized")
@@ -579,7 +579,7 @@ server <- function(input, output, session) {
       filter(state %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = date, y = inIcuCurrently, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Currently in ICU", color = "State") +
       ggtitle("Daily State Currently in ICU")
@@ -590,7 +590,7 @@ server <- function(input, output, session) {
       filter(state %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = date, y = onVentilatorCurrently, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Currently on Ventilator", color = "State") +
       ggtitle("Daily State Currently on Ventilator")
@@ -602,7 +602,7 @@ server <- function(input, output, session) {
       inner_join(df_pop_state2) %>%
       ggplot(aes(x = date, y = 100000 * hospitalizedCurrently / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Hospitalized / 100k", color = "State") +
       ggtitle("Daily State Currently Hospitalized / 100k people")
@@ -614,7 +614,7 @@ server <- function(input, output, session) {
       inner_join(df_pop_state2) %>%
       ggplot(aes(x = date, y = 100000 * inIcuCurrently / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Currently in ICU / 100k", color = "State") +
       ggtitle("Daily State Currently in ICU / 100k people")
@@ -626,7 +626,7 @@ server <- function(input, output, session) {
       inner_join(df_pop_state2) %>%
       ggplot(aes(x = date, y = 100000 * onVentilatorCurrently / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Currently on Ventilator / 100k", color = "State") +
       ggtitle("Daily State Currently on Ventilator / 100k people")
@@ -637,7 +637,7 @@ server <- function(input, output, session) {
       filter(region %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = as.Date(date), y = mean, color = region)) +
       geom_hline(yintercept = 1, color = "dimgray") +
-      geom_line(size = 1) +
+      geom_point() +
       labs(x = "Date", y = "Rt", color = "State") +
       ggtitle("Daily State Rt")
   })
@@ -647,7 +647,7 @@ server <- function(input, output, session) {
       filter(region %in% toupper(input$statepicker)) %>%
       ggplot(aes(x = as.Date(date), y = new_cases, color = region)) +
       geom_hline(yintercept = 1, color = "dimgray") +
-      geom_line() +
+      geom_point() +
       geom_smooth(se = input$inc_se) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "New Cases", color = "State") +
@@ -796,60 +796,56 @@ server <- function(input, output, session) {
     cc$render()
   })
 
-  output$cap_states_cases_table <- renderTable(
-    {
-      states_current %>%
-        inner_join(states_info, by = "state") %>%
-        mutate(region = tolower(name)) %>%
-        inner_join(df_pop_state, by = "region") %>%
-        rename(pop = value) %>%
-        transmute(
-          State = state,
-          `Tests / 100k` = 100000 * totalTestResults / pop,
-          `Positive Tests / 100k` = 100000 * positive / pop,
-          `Deaths / 100k` = 100000 * death / pop
-        ) %>%
-        arrange(
-          desc(`Positive Tests / 100k`),
-          desc(`Deaths / 100k`),
-          desc(`Tests / 100k`)
-        ) %>%
-        head(10) %>%
-        mutate(
-          `Tests / 100k` = scales::comma(`Tests / 100k`),
-          `Positive Tests / 100k` = scales::comma(`Positive Tests / 100k`),
-          `Deaths / 100k` = scales::comma(`Deaths / 100k`)
-        )
-    }
-  )
+  output$cap_states_cases_table <- renderTable({
+    states_current %>%
+      inner_join(states_info, by = "state") %>%
+      mutate(region = tolower(name)) %>%
+      inner_join(df_pop_state, by = "region") %>%
+      rename(pop = value) %>%
+      transmute(
+        State = state,
+        `Tests / 100k` = 100000 * totalTestResults / pop,
+        `Positive Tests / 100k` = 100000 * positive / pop,
+        `Deaths / 100k` = 100000 * death / pop
+      ) %>%
+      arrange(
+        desc(`Positive Tests / 100k`),
+        desc(`Deaths / 100k`),
+        desc(`Tests / 100k`)
+      ) %>%
+      head(10) %>%
+      mutate(
+        `Tests / 100k` = scales::comma(`Tests / 100k`),
+        `Positive Tests / 100k` = scales::comma(`Positive Tests / 100k`),
+        `Deaths / 100k` = scales::comma(`Deaths / 100k`)
+      )
+  })
 
-  output$cap_states_deaths_table <- renderTable(
-    {
-      states_current %>%
-        inner_join(states_info, by = "state") %>%
-        mutate(region = tolower(name)) %>%
-        inner_join(df_pop_state, by = "region") %>%
-        rename(pop = value) %>%
-        transmute(
-          State = state,
-          `Tests / 100k` = 100000 * totalTestResults / pop,
-          `Positive Tests / 100k` = 100000 * positive / pop,
-          `Deaths / 100k` = 100000 * death / pop
-        ) %>%
-        arrange(
-          desc(`Deaths / 100k`),
-          desc(`Positive Tests / 100k`),
-          desc(`Tests / 100k`)
-        ) %>%
-        head(10) %>%
-        mutate(
-          `Tests / 100k` = scales::comma(`Tests / 100k`),
-          `Positive Tests / 100k` = scales::comma(`Positive Tests / 100k`),
-          `Deaths / 100k` = scales::comma(`Deaths / 100k`)
-        )
-    }
-  )
-  
+  output$cap_states_deaths_table <- renderTable({
+    states_current %>%
+      inner_join(states_info, by = "state") %>%
+      mutate(region = tolower(name)) %>%
+      inner_join(df_pop_state, by = "region") %>%
+      rename(pop = value) %>%
+      transmute(
+        State = state,
+        `Tests / 100k` = 100000 * totalTestResults / pop,
+        `Positive Tests / 100k` = 100000 * positive / pop,
+        `Deaths / 100k` = 100000 * death / pop
+      ) %>%
+      arrange(
+        desc(`Deaths / 100k`),
+        desc(`Positive Tests / 100k`),
+        desc(`Tests / 100k`)
+      ) %>%
+      head(10) %>%
+      mutate(
+        `Tests / 100k` = scales::comma(`Tests / 100k`),
+        `Positive Tests / 100k` = scales::comma(`Positive Tests / 100k`),
+        `Deaths / 100k` = scales::comma(`Deaths / 100k`)
+      )
+  })
+
   output$data_quality_map <- renderPlot({
     cc <- StateChoropleth$new(states_grade)
 
@@ -879,39 +875,35 @@ server <- function(input, output, session) {
     cc$render()
   })
 
-  output$cty_natcases_table <- renderTable(
-    {
-      county_data_cases %>%
-        arrange(desc(value)) %>%
-        head(10) %>%
-        transmute(
-          State = state,
-          County = county,
-          Population = scales::comma(population),
-          Cases = scales::comma(cases),
-          Deaths = scales::comma(deaths),
-          Mortality = scales::percent(deaths / cases),
-          `Cases / 100k` = scales::comma(value)
-        )
-    }
-  )
+  output$cty_natcases_table <- renderTable({
+    county_data_cases %>%
+      arrange(desc(value)) %>%
+      head(10) %>%
+      transmute(
+        State = state,
+        County = county,
+        Population = scales::comma(population),
+        Cases = scales::comma(cases),
+        Deaths = scales::comma(deaths),
+        Mortality = scales::percent(deaths / cases),
+        `Cases / 100k` = scales::comma(value)
+      )
+  })
 
-  output$cty_natdeaths_table <- renderTable(
-    {
-      county_data_deaths %>%
-        arrange(desc(value)) %>%
-        head(10) %>%
-        transmute(
-          State = state,
-          County = county,
-          Population = scales::comma(population),
-          Cases = scales::comma(cases),
-          Deaths = scales::comma(deaths),
-          Mortality = scales::percent(deaths / cases),
-          `Deaths / 100k` = scales::comma(value)
-        )
-    }
-  )
+  output$cty_natdeaths_table <- renderTable({
+    county_data_deaths %>%
+      arrange(desc(value)) %>%
+      head(10) %>%
+      transmute(
+        State = state,
+        County = county,
+        Population = scales::comma(population),
+        Cases = scales::comma(cases),
+        Deaths = scales::comma(deaths),
+        Mortality = scales::percent(deaths / cases),
+        `Deaths / 100k` = scales::comma(value)
+      )
+  })
 
   output$cty_cases_map <- renderPlot({
     cc <- CountyChoropleth$new(county_data_cases)
@@ -935,41 +927,37 @@ server <- function(input, output, session) {
     cc$render()
   })
 
-  output$cty_cases_table <- renderTable(
-    {
-      county_data_cases %>%
-        filter(state %in% df_pop_state2$name[df_pop_state2$state %in% input$statepicker]) %>%
-        arrange(desc(value)) %>%
-        head(10) %>%
-        transmute(
-          State = state,
-          County = county,
-          Population = scales::comma(population),
-          Cases = scales::comma(cases),
-          Deaths = scales::comma(deaths),
-          Mortality = scales::percent(deaths / cases),
-          `Cases / 100k` = scales::comma(value)
-        )
-    }
-  )
+  output$cty_cases_table <- renderTable({
+    county_data_cases %>%
+      filter(state %in% df_pop_state2$name[df_pop_state2$state %in% input$statepicker]) %>%
+      arrange(desc(value)) %>%
+      head(10) %>%
+      transmute(
+        State = state,
+        County = county,
+        Population = scales::comma(population),
+        Cases = scales::comma(cases),
+        Deaths = scales::comma(deaths),
+        Mortality = scales::percent(deaths / cases),
+        `Cases / 100k` = scales::comma(value)
+      )
+  })
 
-  output$cty_deaths_table <- renderTable(
-    {
-      county_data_deaths %>%
-        filter(state %in% df_pop_state2$name[df_pop_state2$state %in% input$statepicker]) %>%
-        arrange(desc(value)) %>%
-        head(10) %>%
-        transmute(
-          State = state,
-          County = county,
-          Population = scales::comma(population),
-          Cases = scales::comma(cases),
-          Deaths = scales::comma(deaths),
-          Mortality = scales::percent(deaths / cases),
-          `Deaths / 100k` = scales::comma(value)
-        )
-    }
-  )
+  output$cty_deaths_table <- renderTable({
+    county_data_deaths %>%
+      filter(state %in% df_pop_state2$name[df_pop_state2$state %in% input$statepicker]) %>%
+      arrange(desc(value)) %>%
+      head(10) %>%
+      transmute(
+        State = state,
+        County = county,
+        Population = scales::comma(population),
+        Cases = scales::comma(cases),
+        Deaths = scales::comma(deaths),
+        Mortality = scales::percent(deaths / cases),
+        `Deaths / 100k` = scales::comma(value)
+      )
+  })
 
   output$county_3d_chart1 <- renderPlotly({
     temp_data <- raw_county_data %>%
@@ -1067,35 +1055,31 @@ server <- function(input, output, session) {
       config(displayModeBar = FALSE)
   })
 
-  output$data_us <- renderTable(
-    {
-      us_current %>%
-        transmute(
-          Tests = scales::comma(totalTestResults),
-          Positive = scales::comma(positive),
-          Deaths = scales::comma(death),
-          Recovered = scales::comma(recovered),
-          Modified = as.character(lastModified)
-        )
-    }
-  )
+  output$data_us <- renderTable({
+    us_current %>%
+      transmute(
+        Tests = scales::comma(totalTestResults),
+        Positive = scales::comma(positive),
+        Deaths = scales::comma(death),
+        Recovered = scales::comma(recovered),
+        Modified = as.character(lastModified)
+      )
+  })
 
-  output$data_states <- renderTable(
-    {
-      states_current %>%
-        transmute(
-          State = state,
-          Tests = scales::comma(totalTestResults),
-          Positive = scales::comma(positive),
-          Deaths = scales::comma(death),
-          Recovered = scales::comma(recovered),
-          Updated = lastUpdateEt,
-          Checked = checkTimeEt,
-          Quality = dataQualityGrade
-        ) %>%
-        arrange(State)
-    }
-  )
+  output$data_states <- renderTable({
+    states_current %>%
+      transmute(
+        State = state,
+        Tests = scales::comma(totalTestResults),
+        Positive = scales::comma(positive),
+        Deaths = scales::comma(death),
+        Recovered = scales::comma(recovered),
+        Updated = lastUpdateEt,
+        Checked = checkTimeEt,
+        Quality = dataQualityGrade
+      ) %>%
+      arrange(State)
+  })
 }
 
 shinyApp(ui = ui, server = server)
