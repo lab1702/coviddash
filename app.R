@@ -241,7 +241,7 @@ ui <- dashboardPage(
         tabName = "state_capita_tab",
         box(plotOutput("cap_cases_map"), status = "warning"),
         box(plotOutput("cap_deaths_map"), status = "danger"),
-        box(tableOutput("cap_states_cases_table"), status = "warning", title = "Top 10 States by Positive Tests / 100k people"),
+        box(tableOutput("cap_states_cases_table"), status = "warning", title = "Top 10 States by Cases / 100k people"),
         box(tableOutput("cap_states_deaths_table"), status = "danger", title = "Top 10 States by Deaths / 100k people")
       ),
       tabItem(
@@ -749,7 +749,7 @@ server <- function(input, output, session) {
         )
     )
 
-    cc$title <- "State Positive Tests / 100k people"
+    cc$title <- "State Cases / 100k people"
     cc$set_num_colors(1)
     cc$ggplot_scale <- scale_fill_viridis_c("", na.value = "white", option = "B", direction = -1)
 
@@ -804,20 +804,22 @@ server <- function(input, output, session) {
       rename(pop = value) %>%
       transmute(
         State = state,
-        `Tests / 100k` = 100000 * totalTestResults / pop,
-        `Positive Tests / 100k` = 100000 * positive / pop,
-        `Deaths / 100k` = 100000 * death / pop
+        Population = pop,
+        Cases = positive,
+        Deaths = death,
+        `Cases / 100k` = 100000 * positive / pop
       ) %>%
       arrange(
-        desc(`Positive Tests / 100k`),
-        desc(`Deaths / 100k`),
-        desc(`Tests / 100k`)
+        desc(`Cases / 100k`),
+        desc(Deaths),
+        desc(Cases)
       ) %>%
       head(10) %>%
       mutate(
-        `Tests / 100k` = scales::comma(`Tests / 100k`),
-        `Positive Tests / 100k` = scales::comma(`Positive Tests / 100k`),
-        `Deaths / 100k` = scales::comma(`Deaths / 100k`)
+        `Population` = scales::comma(Population),
+        `Cases` = scales::comma(Cases),
+        `Deaths` = scales::comma(Deaths),
+        `Cases / 100k` = scales::comma(`Cases / 100k`)
       )
   })
 
@@ -829,19 +831,21 @@ server <- function(input, output, session) {
       rename(pop = value) %>%
       transmute(
         State = state,
-        `Tests / 100k` = 100000 * totalTestResults / pop,
-        `Positive Tests / 100k` = 100000 * positive / pop,
+        Population = pop,
+        Cases = positive,
+        Deaths = death,
         `Deaths / 100k` = 100000 * death / pop
       ) %>%
       arrange(
         desc(`Deaths / 100k`),
-        desc(`Positive Tests / 100k`),
-        desc(`Tests / 100k`)
+        desc(Deaths),
+        desc(Cases)
       ) %>%
       head(10) %>%
       mutate(
-        `Tests / 100k` = scales::comma(`Tests / 100k`),
-        `Positive Tests / 100k` = scales::comma(`Positive Tests / 100k`),
+        `Population` = scales::comma(Population),
+        `Cases` = scales::comma(Cases),
+        `Deaths` = scales::comma(Deaths),
         `Deaths / 100k` = scales::comma(`Deaths / 100k`)
       )
   })
@@ -885,7 +889,6 @@ server <- function(input, output, session) {
         Population = scales::comma(population),
         Cases = scales::comma(cases),
         Deaths = scales::comma(deaths),
-        Mortality = scales::percent(deaths / cases),
         `Cases / 100k` = scales::comma(value)
       )
   })
@@ -900,7 +903,6 @@ server <- function(input, output, session) {
         Population = scales::comma(population),
         Cases = scales::comma(cases),
         Deaths = scales::comma(deaths),
-        Mortality = scales::percent(deaths / cases),
         `Deaths / 100k` = scales::comma(value)
       )
   })
@@ -938,7 +940,6 @@ server <- function(input, output, session) {
         Population = scales::comma(population),
         Cases = scales::comma(cases),
         Deaths = scales::comma(deaths),
-        Mortality = scales::percent(deaths / cases),
         `Cases / 100k` = scales::comma(value)
       )
   })
@@ -954,7 +955,6 @@ server <- function(input, output, session) {
         Population = scales::comma(population),
         Cases = scales::comma(cases),
         Deaths = scales::comma(deaths),
-        Mortality = scales::percent(deaths / cases),
         `Deaths / 100k` = scales::comma(value)
       )
   })
