@@ -74,6 +74,13 @@ county_data_deaths <- all_county_data %>%
     mort = deaths / cases
   )
 
+states_grade <- states_current %>%
+  inner_join(df_pop_state2) %>%
+  transmute(
+    region = tolower(name),
+    value = ordered(dataQualityGrade, levels = c("A+", "A", "B", "C", "D"))
+  )
+
 
 ui <- dashboardPage(
   header = dashboardHeader(title = "COVID-19"),
@@ -122,6 +129,9 @@ ui <- dashboardPage(
     tabItems(
       tabItem(
         tabName = "about_tab",
+        box(
+          plotOutput("data_quality_map")
+        ),
         box(
           "This is still a test dashboard and may contain errors.",
           title = "About",
@@ -267,8 +277,8 @@ ui <- dashboardPage(
           ),
           width = 12
         ),
-        box(plotlyOutput("county_3d_chart1", height = 700)),
-        box(plotlyOutput("county_3d_chart2", height = 700)),
+        box(plotlyOutput("county_3d_chart1", height = 651)),
+        box(plotlyOutput("county_3d_chart2", height = 651)),
         box("This page is under construction and problems are to be expected. Click and drag to rotate.", width = 12)
       ),
       tabItem(
@@ -901,6 +911,15 @@ server <- function(input, output, session) {
     cc$render()
   })
 
+  output$data_quality_map <- renderPlot({
+    cc <- StateChoropleth$new(states_grade)
+
+    cc$title <- "Data Quality by State - According to covidtracking.com"
+    cc$ggplot_scale <- scale_fill_brewer(palette = "RdYlGn", direction = -1)
+
+    cc$render()
+  })
+
   output$pos_tests_map <- renderPlot({
     cc <- StateChoropleth$new(
       states_current %>%
@@ -1045,20 +1064,24 @@ server <- function(input, output, session) {
       filter(state == input$state3d_select) %>%
       group_by(county) %>%
       arrange(date) %>%
-      mutate(cases = c(min(cases), diff(cases))) %>%
+      transmute(
+        County = county,
+        Date = date,
+        Cases = c(min(cases), diff(cases))
+      ) %>%
       ungroup() %>%
-      arrange(county, date)
+      arrange(County, Date)
 
     temp_data %>%
       plot_ly(
-        x = ~county,
-        y = ~date,
-        z = ~cases,
-        intensity = ~cases,
+        x = ~County,
+        y = ~Date,
+        z = ~Cases,
+        intensity = ~Cases,
         type = "mesh3d"
       ) %>%
       layout(
-        title = list(text = "Cases by County")
+        title = list(text = paste(input$state3d_select, "- Cases by County and Date"))
       ) %>%
       config(displayModeBar = FALSE)
   })
@@ -1068,54 +1091,66 @@ server <- function(input, output, session) {
       filter(state == input$state3d_select) %>%
       group_by(county) %>%
       arrange(date) %>%
-      mutate(deaths = c(min(deaths), diff(deaths))) %>%
+      transmute(
+        County = county,
+        Date = date,
+        Deaths = c(min(deaths), diff(deaths))
+      ) %>%
       ungroup() %>%
-      arrange(county, date)
+      arrange(County, Date)
 
     temp_data %>%
       plot_ly(
-        x = ~county,
-        y = ~date,
-        z = ~deaths,
-        intensity = ~deaths,
+        x = ~County,
+        y = ~Date,
+        z = ~Deaths,
+        intensity = ~Deaths,
         type = "mesh3d"
       ) %>%
       layout(
-        title = list(text = "Deaths by County")
+        title = list(text = paste(input$state3d_select, "- Deaths by County and Date"))
       ) %>%
       config(displayModeBar = FALSE)
   })
 
   output$state_3d_chart1 <- renderPlotly({
     states_daily %>%
-      filter(date >= "2020-03-01") %>%
-      arrange(state, date) %>%
+      transmute(
+        State = state,
+        Date = date,
+        Cases = positiveIncrease
+      ) %>%
+      arrange(State, Date) %>%
       plot_ly(
-        x = ~state,
-        y = ~date,
-        z = ~positiveIncrease,
-        intensity = ~positiveIncrease,
+        x = ~State,
+        y = ~Date,
+        z = ~Cases,
+        intensity = ~Cases,
         type = "mesh3d"
       ) %>%
       layout(
-        title = list(text = "Positive Tests by State")
+        title = list(text = "Cases by State and Date")
       ) %>%
       config(displayModeBar = FALSE)
   })
 
   output$state_3d_chart2 <- renderPlotly({
     states_daily %>%
-      filter(date >= "2020-03-01") %>%
-      arrange(state, date) %>%
+      transmute(
+        State = state,
+        Date = date,
+        Deaths = deathIncrease
+      ) %>%
+      arrange(State, Date) %>%
       plot_ly(
-        x = ~state,
-        y = ~date,
-        z = ~deathIncrease,
-        intensity = ~deathIncrease,
+        x = ~State,
+        y = ~Date,
+        z = ~Deaths,
+        intensity = ~Deaths,
         type = "mesh3d"
       ) %>%
       layout(
-        title = list(text = "Deaths by State")
+        title = list(text = "Deaths by State and Date")
       ) %>%
       config(displayModeBar = FALSE)
   })
