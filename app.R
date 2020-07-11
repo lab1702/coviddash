@@ -9,6 +9,9 @@ library(choroplethrMaps)
 library(plotly)
 
 
+theme_set(theme_minimal(base_size = 14))
+
+
 data("df_pop_state")
 data("df_county_demographics")
 
@@ -103,10 +106,9 @@ ui <- dashboardPage(
       menuItem(text = "Deaths Heatmap", tabName = "heatmaps_death_tab"),
       menuItem(
         text = "Maps",
-        menuSubItem(text = "State Percentages", tabName = "state_percent_tab"),
-        menuSubItem(text = "State Counts / 100k", tabName = "state_capita_tab"),
+        menuSubItem(text = "All States", tabName = "state_capita_tab"),
         menuSubItem(text = "All Counties", tabName = "county_natcapita_tab"),
-        menuSubItem(text = "Selected Counties", tabName = "county_capita_tab")
+        menuSubItem(text = "Focused Counties", tabName = "county_capita_tab")
       ),
       menuItem(text = "State 3D Chart", tabName = "state_3d_tab"),
       menuItem(text = "County 3D Chart", tabName = "county_3d_tab"),
@@ -114,7 +116,7 @@ ui <- dashboardPage(
     ),
     selectInput(
       inputId = "statepicker",
-      label = "Select State(s):",
+      label = "Focus State(s) in Charts:",
       choices = states_info$state,
       selected = "MI",
       multiple = TRUE
@@ -123,6 +125,12 @@ ui <- dashboardPage(
       inputId = "inc_se",
       label = "Show Confidence Intervals",
       value = FALSE
+    ),
+    selectInput(
+      inputId = "state3d_select",
+      label = "Focus State in County 3D Chart:",
+      choices = sort(unique(raw_county_data$state)),
+      selected = "Michigan"
     )
   ),
   body = dashboardBody(
@@ -226,18 +234,11 @@ ui <- dashboardPage(
         box(plotOutput("state_death_heatmap", height = 768), status = "danger", width = 12)
       ),
       tabItem(
-        tabName = "state_percent_tab",
-        box(plotOutput("percent_tests_map")),
-        box(plotOutput("pos_tests_map"), status = "warning"),
-        box(plotOutput("cap_deaths_cases_map"), status = "danger"),
-        box(tableOutput("percent_states_top10_table"), status = "danger", title = "Top 10 States by Mortality Rate")
-      ),
-      tabItem(
         tabName = "state_capita_tab",
-        box(plotOutput("cap_tests_map")),
         box(plotOutput("cap_cases_map"), status = "warning"),
         box(plotOutput("cap_deaths_map"), status = "danger"),
-        box(tableOutput("cap_states_top10_table"), status = "danger", title = "Top 10 States by Deaths / 100k people")
+        box(tableOutput("cap_states_cases_table"), status = "warning", title = "Top 10 States by Positive Tests / 100k people"),
+        box(tableOutput("cap_states_deaths_table"), status = "danger", title = "Top 10 States by Deaths / 100k people")
       ),
       tabItem(
         tabName = "county_natcapita_tab",
@@ -254,32 +255,14 @@ ui <- dashboardPage(
         box(tableOutput("cty_deaths_table"), status = "danger", title = "Top 10 Counties by Deaths / 100k")
       ),
       tabItem(
-        tabName = "county_aov_tab",
-        box(plotOutput("county_aov_effects", height = 768)),
-        box(plotOutput("county_cor_plot", height = 768)),
-        box("This page includes all counties, not just ones in states that are selected.", width = 12)
-      ),
-      tabItem(
         tabName = "state_3d_tab",
         box(plotlyOutput("state_3d_chart1", height = 768)),
-        box(plotlyOutput("state_3d_chart2", height = 768)),
-        box("This page is under construction and problems are to be expected. Click and drag to rotate.", width = 12)
+        box(plotlyOutput("state_3d_chart2", height = 768))
       ),
       tabItem(
         tabName = "county_3d_tab",
-        box(
-          selectInput(
-            inputId = "state3d_select",
-            label = "Select State",
-            choices = sort(unique(raw_county_data$state)),
-            selected = "Michigan",
-            selectize = FALSE
-          ),
-          width = 12
-        ),
-        box(plotlyOutput("county_3d_chart1", height = 651)),
-        box(plotlyOutput("county_3d_chart2", height = 651)),
-        box("This page is under construction and problems are to be expected. Click and drag to rotate.", width = 12)
+        box(plotlyOutput("county_3d_chart1", height = 768)),
+        box(plotlyOutput("county_3d_chart2", height = 768))
       ),
       tabItem(
         tabName = "data_tables_tab",
@@ -773,26 +756,6 @@ server <- function(input, output, session) {
     cc$render()
   })
 
-  output$cap_deaths_cases_map <- renderPlot({
-    cc <- StateChoropleth$new(
-      states_current %>%
-        inner_join(states_info, by = "state") %>%
-        mutate(region = tolower(name)) %>%
-        inner_join(df_pop_state, by = "region") %>%
-        rename(pop = value) %>%
-        transmute(
-          region,
-          value = 100 * death / positive
-        )
-    )
-
-    cc$title <- "State Mortality Rate %"
-    cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_viridis_c("", na.value = "white", option = "B", direction = -1)
-
-    cc$render()
-  })
-
   output$cap_deaths_map <- renderPlot({
     cc <- StateChoropleth$new(
       states_current %>%
@@ -833,7 +796,7 @@ server <- function(input, output, session) {
     cc$render()
   })
 
-  output$percent_states_top10_table <- renderTable(
+  output$cap_states_cases_table <- renderTable(
     {
       states_current %>%
         inner_join(states_info, by = "state") %>%
@@ -842,27 +805,25 @@ server <- function(input, output, session) {
         rename(pop = value) %>%
         transmute(
           State = state,
-          `Population Tested` = totalTestResults / pop,
-          `Positive Tests` = positive / totalTestResults,
-          `Mortality Rate` = death / positive
+          `Tests / 100k` = 100000 * totalTestResults / pop,
+          `Positive Tests / 100k` = 100000 * positive / pop,
+          `Deaths / 100k` = 100000 * death / pop
         ) %>%
         arrange(
-          desc(`Mortality Rate`),
-          desc(`Positive Tests`),
-          desc(`Population Tested`)
+          desc(`Positive Tests / 100k`),
+          desc(`Deaths / 100k`),
+          desc(`Tests / 100k`)
         ) %>%
         head(10) %>%
         mutate(
-          `Population Tested` = scales::percent(`Population Tested`),
-          `Positive Tests` = scales::percent(`Positive Tests`),
-          `Mortality Rate` = scales::percent(`Mortality Rate`)
+          `Tests / 100k` = scales::comma(`Tests / 100k`),
+          `Positive Tests / 100k` = scales::comma(`Positive Tests / 100k`),
+          `Deaths / 100k` = scales::comma(`Deaths / 100k`)
         )
-    },
-    striped = TRUE,
-    bordered = TRUE
+    }
   )
 
-  output$cap_states_top10_table <- renderTable(
+  output$cap_states_deaths_table <- renderTable(
     {
       states_current %>%
         inner_join(states_info, by = "state") %>%
@@ -886,56 +847,15 @@ server <- function(input, output, session) {
           `Positive Tests / 100k` = scales::comma(`Positive Tests / 100k`),
           `Deaths / 100k` = scales::comma(`Deaths / 100k`)
         )
-    },
-    striped = TRUE,
-    bordered = TRUE
+    }
   )
-
-  output$percent_tests_map <- renderPlot({
-    cc <- StateChoropleth$new(
-      states_current %>%
-        inner_join(states_info, by = "state") %>%
-        mutate(region = tolower(name)) %>%
-        inner_join(df_pop_state, by = "region") %>%
-        rename(pop = value) %>%
-        transmute(
-          region,
-          value = 100 * totalTestResults / pop
-        )
-    )
-
-    cc$title <- "State % Population Tested"
-    cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_viridis_c("", na.value = "white", option = "B", direction = -1)
-
-    cc$render()
-  })
-
+  
   output$data_quality_map <- renderPlot({
     cc <- StateChoropleth$new(states_grade)
 
     cc$title <- "Data Quality by State - According to covidtracking.com"
     cc$ggplot_scale <- scale_fill_brewer(palette = "RdYlGn", direction = -1)
 
-    cc$render()
-  })
-
-  output$pos_tests_map <- renderPlot({
-    cc <- StateChoropleth$new(
-      states_current %>%
-        inner_join(states_info, by = "state") %>%
-        mutate(region = tolower(name)) %>%
-        inner_join(df_pop_state, by = "region") %>%
-        rename(pop = value) %>%
-        transmute(
-          region,
-          value = 100 * positive / totalTestResults
-        )
-    )
-
-    cc$title <- "State % Positive Tests"
-    cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_viridis_c("", na.value = "white", option = "B", direction = -1)
     cc$render()
   })
 
@@ -973,9 +893,7 @@ server <- function(input, output, session) {
           Mortality = scales::percent(deaths / cases),
           `Cases / 100k` = scales::comma(value)
         )
-    },
-    striped = TRUE,
-    bordered = TRUE
+    }
   )
 
   output$cty_natdeaths_table <- renderTable(
@@ -992,9 +910,7 @@ server <- function(input, output, session) {
           Mortality = scales::percent(deaths / cases),
           `Deaths / 100k` = scales::comma(value)
         )
-    },
-    striped = TRUE,
-    bordered = TRUE
+    }
   )
 
   output$cty_cases_map <- renderPlot({
@@ -1034,9 +950,7 @@ server <- function(input, output, session) {
           Mortality = scales::percent(deaths / cases),
           `Cases / 100k` = scales::comma(value)
         )
-    },
-    striped = TRUE,
-    bordered = TRUE
+    }
   )
 
   output$cty_deaths_table <- renderTable(
@@ -1054,9 +968,7 @@ server <- function(input, output, session) {
           Mortality = scales::percent(deaths / cases),
           `Deaths / 100k` = scales::comma(value)
         )
-    },
-    striped = TRUE,
-    bordered = TRUE
+    }
   )
 
   output$county_3d_chart1 <- renderPlotly({
@@ -1165,9 +1077,7 @@ server <- function(input, output, session) {
           Recovered = scales::comma(recovered),
           Modified = as.character(lastModified)
         )
-    },
-    striped = TRUE,
-    bordered = TRUE
+    }
   )
 
   output$data_states <- renderTable(
@@ -1184,9 +1094,7 @@ server <- function(input, output, session) {
           Quality = dataQualityGrade
         ) %>%
         arrange(State)
-    },
-    striped = TRUE,
-    bordered = TRUE
+    }
   )
 }
 
