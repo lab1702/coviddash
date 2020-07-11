@@ -260,13 +260,13 @@ ui <- dashboardPage(
       ),
       tabItem(
         tabName = "state_3d_tab",
-        box(plotlyOutput("state_3d_chart1", height = 768)),
-        box(plotlyOutput("state_3d_chart2", height = 768))
+        box(plotlyOutput("state_3d_chart1", height = 768), status = "warning"),
+        box(plotlyOutput("state_3d_chart2", height = 768), status = "danger")
       ),
       tabItem(
         tabName = "county_3d_tab",
-        box(plotlyOutput("county_3d_chart1", height = 768)),
-        box(plotlyOutput("county_3d_chart2", height = 768))
+        box(plotlyOutput("county_3d_chart1", height = 768), status = "warning"),
+        box(plotlyOutput("county_3d_chart2", height = 768), status = "danger")
       ),
       tabItem(
         tabName = "data_tables_tab",
