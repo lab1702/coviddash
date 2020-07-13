@@ -1,6 +1,7 @@
 
 library(tidyverse)
 library(lubridate)
+library(zoo)
 library(rvest)
 library(shiny)
 library(shinydashboard)
@@ -92,6 +93,8 @@ ui <- dashboardPage(
       menuItem(text = "About", tabName = "about_tab"),
       menuItem(text = "Cumulative Counts", tabName = "total_tab"),
       menuItem(text = "Cumulative Percentages", tabName = "perc_tab"),
+      menuItem(text = "Daily State Rt", tabName = "state_rt_tab"),
+      menuItem(text = "Summary Tables", tabName = "data_tables_tab"),
       menuItem(
         text = "Daily Counts",
         menuSubItem(text = "National", tabName = "us_charts_tab"),
@@ -101,30 +104,27 @@ ui <- dashboardPage(
         menuSubItem(text = "State Hospital", tabName = "state_hosp_tab"),
         menuSubItem(text = "State Hospital / 100k", tabName = "state_caphosp_tab")
       ),
-      menuItem(text = "Daily State Rt", tabName = "state_rt_tab"),
-      menuItem(text = "Positive Tests Heatmap", tabName = "heatmaps_positive_tab"),
-      menuItem(text = "Deaths Heatmap", tabName = "heatmaps_death_tab"),
+      menuItem(
+        text = "Heat Maps",
+        menuItem(text = "Positive Tests", tabName = "heatmaps_positive_tab"),
+        menuItem(text = "Deaths", tabName = "heatmaps_death_tab"),
+        menuItem(text = "States 3D", tabName = "state_3d_tab"),
+        menuItem(text = "Counties 3D", tabName = "county_3d_tab")
+      ),
       menuItem(
         text = "Maps",
         menuSubItem(text = "All States", tabName = "state_capita_tab"),
         menuSubItem(text = "All Counties", tabName = "county_natcapita_tab"),
         menuSubItem(text = "Focused Counties", tabName = "county_capita_tab")
-      ),
-      menuItem(text = "State 3D Chart", tabName = "state_3d_tab"),
-      menuItem(text = "County 3D Chart", tabName = "county_3d_tab"),
-      menuItem(text = "Data Tables", tabName = "data_tables_tab")
+      )
     ),
+    hr(),
     selectInput(
       inputId = "statepicker",
       label = "Focus State(s) in Charts:",
       choices = states_info$state,
       selected = "MI",
       multiple = TRUE
-    ),
-    checkboxInput(
-      inputId = "inc_se",
-      label = "Show Confidence Intervals",
-      value = FALSE
     ),
     selectInput(
       inputId = "state3d_select",
@@ -430,7 +430,7 @@ server <- function(input, output, session) {
       ggplot(aes(x = date, y = totalTestResultsIncrease)) +
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_point() +
-      geom_smooth(se = input$inc_se) +
+      geom_line(aes(y = rollmean(x = totalTestResultsIncrease, k = 7, fill = NA)), size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Tests") +
       ggtitle("Daily National Tests")
@@ -441,7 +441,7 @@ server <- function(input, output, session) {
       ggplot(aes(x = date, y = positiveIncrease)) +
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_point() +
-      geom_smooth(se = input$inc_se) +
+      geom_line(aes(y = rollmean(x = positiveIncrease, k = 7, fill = NA)), size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Positive Tests") +
       ggtitle("Daily National Positive Tests")
@@ -452,7 +452,7 @@ server <- function(input, output, session) {
       ggplot(aes(x = date, y = deathIncrease)) +
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_point() +
-      geom_smooth(se = input$inc_se) +
+      geom_line(aes(y = rollmean(x = deathIncrease, k = 7, fill = NA)), size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Deaths") +
       ggtitle("Daily National Deaths")
@@ -461,10 +461,13 @@ server <- function(input, output, session) {
   output$state_tests_chart <- renderPlot({
     states_daily %>%
       filter(state %in% toupper(input$statepicker)) %>%
+      group_by(state) %>%
+      mutate(rmean = rollmean(x = totalTestResultsIncrease, k = 7, fill = NA)) %>%
+      ungroup() %>%
       ggplot(aes(x = date, y = totalTestResultsIncrease, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_point() +
-      geom_smooth(se = input$inc_se) +
+      geom_line(aes(y = rmean), size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Tests", color = "State") +
       ggtitle("Daily State Tests")
@@ -473,10 +476,13 @@ server <- function(input, output, session) {
   output$state_cases_chart <- renderPlot({
     states_daily %>%
       filter(state %in% toupper(input$statepicker)) %>%
+      group_by(state) %>%
+      mutate(rmean = rollmean(x = positiveIncrease, k = 7, fill = NA)) %>%
+      ungroup() %>%
       ggplot(aes(x = date, y = positiveIncrease, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_point() +
-      geom_smooth(se = input$inc_se) +
+      geom_line(aes(y = rmean), size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Positive Tests", color = "State") +
       ggtitle("Daily State Positive Tests")
@@ -485,10 +491,13 @@ server <- function(input, output, session) {
   output$state_deaths_chart <- renderPlot({
     states_daily %>%
       filter(state %in% toupper(input$statepicker)) %>%
+      group_by(state) %>%
+      mutate(rmean = rollmean(x = deathIncrease, k = 7, fill = NA)) %>%
+      ungroup() %>%
       ggplot(aes(x = date, y = deathIncrease, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_point() +
-      geom_smooth(se = input$inc_se) +
+      geom_line(aes(y = rmean), size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Deaths", color = "State") +
       ggtitle("Daily State Deaths")
@@ -498,10 +507,13 @@ server <- function(input, output, session) {
     states_daily %>%
       filter(state %in% toupper(input$statepicker)) %>%
       inner_join(df_pop_state2) %>%
+      group_by(state) %>%
+      mutate(rmean = rollmean(x = 100000 * totalTestResultsIncrease / pop, k = 7, fill = NA)) %>%
+      ungroup() %>%
       ggplot(aes(x = date, y = 100000 * totalTestResultsIncrease / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_point() +
-      geom_smooth(se = input$inc_se) +
+      geom_line(aes(y = rmean), size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Tests / 100k", color = "State") +
       ggtitle("Daily State Tests / 100k people")
@@ -511,10 +523,13 @@ server <- function(input, output, session) {
     states_daily %>%
       filter(state %in% toupper(input$statepicker)) %>%
       inner_join(df_pop_state2) %>%
+      group_by(state) %>%
+      mutate(rmean = rollmean(x = 100000 * positiveIncrease / pop, k = 7, fill = NA)) %>%
+      ungroup() %>%
       ggplot(aes(x = date, y = 100000 * positiveIncrease / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_point() +
-      geom_smooth(se = input$inc_se) +
+      geom_line(aes(y = rmean), size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Positive Tests / 100k", color = "State") +
       ggtitle("Daily State Positive Tests / 100k people")
@@ -524,10 +539,13 @@ server <- function(input, output, session) {
     states_daily %>%
       filter(state %in% toupper(input$statepicker)) %>%
       inner_join(df_pop_state2) %>%
+      group_by(state) %>%
+      mutate(rmean = rollmean(x = 100000 * deathIncrease / pop, k = 7, fill = NA)) %>%
+      ungroup() %>%
       ggplot(aes(x = date, y = 100000 * deathIncrease / pop, color = state)) +
       geom_hline(yintercept = 0, color = "dimgray") +
       geom_point() +
-      geom_smooth(se = input$inc_se) +
+      geom_line(aes(y = rmean), size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "Deaths / 100k", color = "State") +
       ggtitle("Daily State Deaths / 100k people")
@@ -645,95 +663,54 @@ server <- function(input, output, session) {
   output$state_rtcases_chart <- renderPlot({
     rt_data %>%
       filter(region %in% toupper(input$statepicker)) %>%
+      group_by(region) %>%
+      mutate(rmean = rollmean(x = new_cases, k = 7, fill = NA)) %>%
+      ungroup() %>%
       ggplot(aes(x = as.Date(date), y = new_cases, color = region)) +
       geom_hline(yintercept = 1, color = "dimgray") +
       geom_point() +
-      geom_smooth(se = input$inc_se) +
+      geom_line(aes(y = rmean), size = 1) +
       scale_y_continuous(labels = scales::comma) +
       labs(x = "Date", y = "New Cases", color = "State") +
       ggtitle("Daily State New Cases")
   })
 
   output$state_positive_heatmap <- renderPlot({
-    d <- states_daily %>%
-      filter(
-        state %in% states_info$state,
-        positiveIncrease > 0
-      ) %>%
+    states_daily %>%
       group_by(state) %>%
-      mutate(
-        positiveIncreaseMax = max(positiveIncrease, na.rm = TRUE),
-        dayType = positiveIncrease / positiveIncreaseMax,
-        worstDays = positiveIncrease == positiveIncreaseMax
-      ) %>%
-      ungroup()
-
-    worst <- d %>%
-      filter(worstDays) %>%
-      group_by(state) %>%
-      arrange(desc(date)) %>%
-      filter(row_number() == 1) %>%
+      arrange(date) %>%
+      mutate(rmean = rollmean(x = positiveIncrease, k = 7, na.pad = TRUE)) %>%
       ungroup() %>%
-      transmute(
-        state,
-        worstdate = date
-      )
-
-    d %>%
-      inner_join(worst) %>%
-      ggplot(aes(x = date, y = fct_reorder(state, desc(worstdate)), fill = dayType)) +
+      ggplot(aes(x = date, y = fct_rev(state), fill = rmean)) +
       geom_hline(
-        data = d %>%
+        data = states_info %>%
           filter(state %in% toupper(input$statepicker)),
         aes(yintercept = state, color = state),
         size = 1
       ) +
       geom_tile(color = "white") +
-      geom_point(aes(x = worstdate), color = "white") +
-      scale_fill_viridis_c(labels = scales::percent, direction = -1, option = "B") +
-      labs(x = "Date", y = "States ordered by days since worst count", fill = "", color = "") +
-      ggtitle("Positive Tests per Day as percent of Highest Single Day Count")
+      scale_fill_viridis_c(labels = scales::comma, direction = -1, option = "B") +
+      labs(x = "Date", y = "States", fill = "", color = "") +
+      ggtitle("Rolling 7 Day Average of Positive Tests")
   })
 
   output$state_death_heatmap <- renderPlot({
-    d <- states_daily %>%
-      filter(
-        state %in% states_info$state,
-        deathIncrease > 0
-      ) %>%
+    states_daily %>%
       group_by(state) %>%
-      mutate(
-        deathIncreaseMax = max(deathIncrease, na.rm = TRUE),
-        dayType = deathIncrease / deathIncreaseMax,
-        worstDays = deathIncrease == deathIncreaseMax
-      ) %>%
-      ungroup()
-
-    worst <- d %>%
-      filter(worstDays) %>%
-      group_by(state) %>%
-      arrange(desc(date)) %>%
-      filter(row_number() == 1) %>%
+      arrange(date) %>%
+      mutate(rmean = rollmean(x = deathIncrease, k = 7, na.pad = TRUE)) %>%
       ungroup() %>%
-      transmute(
-        state,
-        worstdate = date
-      )
-
-    d %>%
-      inner_join(worst) %>%
-      ggplot(aes(x = date, y = fct_reorder(state, desc(worstdate)), fill = dayType)) +
+      ggplot(aes(x = date, y = fct_rev(state), fill = rmean)) +
       geom_hline(
-        data = d %>%
+        data = states_info %>%
           filter(state %in% toupper(input$statepicker)),
         aes(yintercept = state, color = state),
         size = 1
       ) +
       geom_tile(color = "white") +
-      geom_point(aes(x = worstdate), color = "white") +
-      scale_fill_viridis_c(labels = scales::percent, direction = -1, option = "B") +
-      labs(x = "Date", y = "States ordered by days since worst count", fill = "", color = "") +
-      ggtitle("Deaths per Day as percent of Highest Single Day Count")
+      scale_fill_viridis_c(labels = scales::comma, direction = -1, option = "B") +
+      labs(x = "Date", y = "States", fill = "", color = "") +
+      ggtitle("Rolling 7 Day Average of Deaths")
   })
 
   output$cap_cases_map <- renderPlot({
@@ -751,8 +728,8 @@ server <- function(input, output, session) {
 
     cc$title <- "State Cases / 100k people"
     cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_viridis_c("", na.value = "white", option = "B", direction = -1)
-
+    cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
+    
     cc$render()
   })
 
@@ -771,27 +748,7 @@ server <- function(input, output, session) {
 
     cc$title <- "State Deaths / 100k people"
     cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_viridis_c("", na.value = "white", option = "B", direction = -1)
-
-    cc$render()
-  })
-
-  output$cap_tests_map <- renderPlot({
-    cc <- StateChoropleth$new(
-      states_current %>%
-        inner_join(states_info, by = "state") %>%
-        mutate(region = tolower(name)) %>%
-        inner_join(df_pop_state, by = "region") %>%
-        rename(pop = value) %>%
-        transmute(
-          region,
-          value = 100000 * totalTestResults / pop
-        )
-    )
-
-    cc$title <- "State Tests / 100k people"
-    cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_viridis_c("", na.value = "white", option = "B", direction = -1)
+    cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
 
     cc$render()
   })
@@ -811,7 +768,6 @@ server <- function(input, output, session) {
       ) %>%
       arrange(
         desc(`Cases / 100k`),
-        desc(Deaths),
         desc(Cases)
       ) %>%
       head(10) %>%
@@ -838,8 +794,7 @@ server <- function(input, output, session) {
       ) %>%
       arrange(
         desc(`Deaths / 100k`),
-        desc(Deaths),
-        desc(Cases)
+        desc(Deaths)
       ) %>%
       head(10) %>%
       mutate(
@@ -864,8 +819,8 @@ server <- function(input, output, session) {
 
     cc$title <- "County Cases / 100k people"
     cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_viridis_c("", na.value = "white", option = "B", direction = -1)
-
+    cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
+    
     cc$render()
   })
 
@@ -874,8 +829,8 @@ server <- function(input, output, session) {
 
     cc$title <- "County Deaths / 100k people"
     cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_viridis_c("", na.value = "white", option = "B", direction = -1)
-
+    cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
+    
     cc$render()
   })
 
@@ -912,7 +867,7 @@ server <- function(input, output, session) {
 
     cc$title <- "County Cases / 100k people"
     cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_viridis_c("", na.value = "white", option = "B", direction = -1)
+    cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
     cc$set_zoom(tolower(df_pop_state2$name[df_pop_state2$state %in% input$statepicker]))
 
     cc$render()
@@ -923,7 +878,7 @@ server <- function(input, output, session) {
 
     cc$title <- "County Deaths / 100k people"
     cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_viridis_c("", na.value = "white", option = "B", direction = -1)
+    cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
     cc$set_zoom(tolower(df_pop_state2$name[df_pop_state2$state %in% input$statepicker]))
 
     cc$render()
@@ -961,13 +916,16 @@ server <- function(input, output, session) {
 
   output$county_3d_chart1 <- renderPlotly({
     temp_data <- raw_county_data %>%
-      filter(state == input$state3d_select) %>%
+      filter(
+        state == input$state3d_select,
+        county != "Unknown"
+      ) %>%
       group_by(county) %>%
       arrange(date) %>%
       transmute(
         County = county,
         Date = date,
-        Cases = c(min(cases), diff(cases))
+        Cases = c(min(cases, na.rm = TRUE), diff(cases)),
       ) %>%
       ungroup() %>%
       arrange(County, Date)
@@ -988,13 +946,16 @@ server <- function(input, output, session) {
 
   output$county_3d_chart2 <- renderPlotly({
     temp_data <- raw_county_data %>%
-      filter(state == input$state3d_select) %>%
+      filter(
+        state == input$state3d_select,
+        county != "Unknown"
+      ) %>%
       group_by(county) %>%
       arrange(date) %>%
       transmute(
         County = county,
         Date = date,
-        Deaths = c(min(deaths), diff(deaths))
+        Deaths = c(min(deaths, na.rm = TRUE), diff(deaths)),
       ) %>%
       ungroup() %>%
       arrange(County, Date)
