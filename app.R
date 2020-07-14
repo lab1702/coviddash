@@ -146,39 +146,39 @@ ui <- dashboardPage(
           status = "danger"
         ),
         box(
-          "National and State data is downloaded from https://covidtracking.com/api",
+          HTML("National and State data is downloaded from <A HREF='https://covidtracking.com/api'>https://covidtracking.com/api</A>"),
           title = "National and State Data Source"
         ),
         box(
-          "County level data is downloaded from https://github.com/nytimes/covid-19-data",
+          HTML("County level data is downloaded from <A HREF='https://github.com/nytimes/covid-19-data'>https://github.com/nytimes/covid-19-data</A>"),
           title = "County Data Source"
         ),
         box(
-          "Rt data is downloaded from https://d14wlfuexuxgcm.cloudfront.net/covid/rt.csv which is used by https://rt.live",
+          HTML("Rt data is available from <A HREF='https://rt.live'>https://rt.live</A>"),
           title = "Rt Data Source"
         ),
         box(
-          "Population data is pulled from the 2012 US American Community Survey (ACS) 5 year estimates included in the 'choroplethr' R package.",
+          HTML("Population data is pulled from the 2012 US American Community Survey (ACS) 5 year estimates included in the <A HREF='https://cran.r-project.org/package=choroplethr'>choroplethr</A> R package."),
           title = "Population Data Source"
         ),
         box(
-          "The inspiration for the 3D charts came from the 'Dr. Frank Models' Facebook group which can be found at https://www.facebook.com/groups/158015618707622",
+          HTML("The inspiration for the 3D charts came from the 'Dr. Frank Models' Facebook group which can be found at <A HREF='https://www.facebook.com/groups/158015618707622'>https://www.facebook.com/groups/158015618707622</A>"),
           title = "3D Charts"
         ),
         box(
-          "Please consider helping the Folding@home project by installing the software from https://foldingathome.org which lets you share unused computer time with COVID-19 (and other) researchers around the world.",
+          HTML("Please consider helping the Folding@home project by installing the software from <A HREF='https://foldingathome.org'>https://foldingathome.org</A> which lets you share unused computer time with COVID-19 (and other) researchers around the world."),
           title = "Folding@home",
           status = "success"
         ),
         box(
-          "The source code for this R/Shiny app is available at https://github.com/lab1702/coviddash",
+          HTML("The source code for this R/Shiny app is available at <A HREF='https://github.com/lab1702/coviddash'>https://github.com/lab1702/coviddash</A>"),
           title = "Source Code"
         )
       ),
       tabItem(
         tabName = "total_tab",
-        box(plotOutput("us_total_chart", height = 768)),
-        box(plotOutput("state_total_chart", height = 768))
+        box(plotOutput("us_total_chart", height = 800)),
+        box(plotOutput("state_total_chart", height = 800))
       ),
       tabItem(
         tabName = "perc_tab",
@@ -225,17 +225,17 @@ ui <- dashboardPage(
       ),
       tabItem(
         tabName = "state_rt_tab",
-        box(plotOutput("state_rt_chart", height = 768)),
-        box(plotOutput("state_rtcases_chart", height = 768), status = "warning"),
+        box(plotOutput("state_rt_chart", height = 800)),
+        box(plotOutput("state_rtcases_chart", height = 800), status = "warning"),
         box("Rt = Average number of people who become infected by an infectious person. Rt > 1 = the virus will spread quickly, Rt < 1 = the virus will stop spreading. Data on this page is sourced from https://rt.live", width = 12)
       ),
       tabItem(
         tabName = "heatmaps_positive_tab",
-        box(plotOutput("state_positive_heatmap", height = 768), status = "warning", width = 12)
+        box(plotOutput("state_positive_heatmap", height = 800), status = "warning", width = 12)
       ),
       tabItem(
         tabName = "heatmaps_death_tab",
-        box(plotOutput("state_death_heatmap", height = 768), status = "danger", width = 12)
+        box(plotOutput("state_death_heatmap", height = 800), status = "danger", width = 12)
       ),
       tabItem(
         tabName = "state_capita_tab",
@@ -260,13 +260,11 @@ ui <- dashboardPage(
       ),
       tabItem(
         tabName = "state_3d_tab",
-        box(plotlyOutput("state_3d_chart1", height = 768), status = "warning"),
-        box(plotlyOutput("state_3d_chart2", height = 768), status = "danger")
+        box(plotlyOutput("state_3d_chart2", height = 800), status = "danger", width = 12)
       ),
       tabItem(
         tabName = "county_3d_tab",
-        box(plotlyOutput("county_3d_chart1", height = 768), status = "warning"),
-        box(plotlyOutput("county_3d_chart2", height = 768), status = "danger")
+        box(plotlyOutput("county_3d_chart2", height = 800), status = "danger", width = 12)
       ),
       tabItem(
         tabName = "data_tables_tab",
@@ -729,7 +727,7 @@ server <- function(input, output, session) {
     cc$title <- "State Cases / 100k people"
     cc$set_num_colors(1)
     cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
-    
+
     cc$render()
   })
 
@@ -820,7 +818,7 @@ server <- function(input, output, session) {
     cc$title <- "County Cases / 100k people"
     cc$set_num_colors(1)
     cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
-    
+
     cc$render()
   })
 
@@ -830,7 +828,7 @@ server <- function(input, output, session) {
     cc$title <- "County Deaths / 100k people"
     cc$set_num_colors(1)
     cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
-    
+
     cc$render()
   })
 
@@ -914,38 +912,8 @@ server <- function(input, output, session) {
       )
   })
 
-  output$county_3d_chart1 <- renderPlotly({
-    temp_data <- raw_county_data %>%
-      filter(
-        state == input$state3d_select,
-        county != "Unknown"
-      ) %>%
-      group_by(county) %>%
-      arrange(date) %>%
-      transmute(
-        County = county,
-        Date = date,
-        Cases = c(min(cases, na.rm = TRUE), diff(cases)),
-      ) %>%
-      ungroup() %>%
-      arrange(County, Date)
-
-    temp_data %>%
-      plot_ly(
-        x = ~County,
-        y = ~Date,
-        z = ~Cases,
-        intensity = ~Cases,
-        type = "mesh3d"
-      ) %>%
-      layout(
-        title = list(text = paste(input$state3d_select, "- Cases by County and Date"))
-      ) %>%
-      config(displayModeBar = FALSE)
-  })
-
   output$county_3d_chart2 <- renderPlotly({
-    temp_data <- raw_county_data %>%
+    raw_county_data %>%
       filter(
         state == input$state3d_select,
         county != "Unknown"
@@ -955,42 +923,20 @@ server <- function(input, output, session) {
       transmute(
         County = county,
         Date = date,
-        Deaths = c(min(deaths, na.rm = TRUE), diff(deaths)),
+        Deaths = c(min(deaths), diff(deaths)),
       ) %>%
       ungroup() %>%
-      arrange(County, Date)
-
-    temp_data %>%
+      arrange(County, Date) %>%
       plot_ly(
         x = ~County,
         y = ~Date,
         z = ~Deaths,
         intensity = ~Deaths,
+        colors = palette(),
         type = "mesh3d"
       ) %>%
       layout(
         title = list(text = paste(input$state3d_select, "- Deaths by County and Date"))
-      ) %>%
-      config(displayModeBar = FALSE)
-  })
-
-  output$state_3d_chart1 <- renderPlotly({
-    states_daily %>%
-      transmute(
-        State = state,
-        Date = date,
-        Cases = positiveIncrease
-      ) %>%
-      arrange(State, Date) %>%
-      plot_ly(
-        x = ~State,
-        y = ~Date,
-        z = ~Cases,
-        intensity = ~Cases,
-        type = "mesh3d"
-      ) %>%
-      layout(
-        title = list(text = "Cases by State and Date")
       ) %>%
       config(displayModeBar = FALSE)
   })
@@ -1008,6 +954,7 @@ server <- function(input, output, session) {
         y = ~Date,
         z = ~Deaths,
         intensity = ~Deaths,
+        colors = palette(),
         type = "mesh3d"
       ) %>%
       layout(
