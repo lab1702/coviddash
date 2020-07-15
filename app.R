@@ -932,7 +932,7 @@ server <- function(input, output, session) {
         y = ~Date,
         z = ~Deaths,
         intensity = ~Deaths,
-        colors = palette(),
+        colors = tail(palette(), -1),
         type = "mesh3d"
       ) %>%
       layout(
@@ -954,7 +954,7 @@ server <- function(input, output, session) {
         y = ~Date,
         z = ~Deaths,
         intensity = ~Deaths,
-        colors = palette(),
+        colors = tail(palette(), -1),
         type = "mesh3d"
       ) %>%
       layout(
