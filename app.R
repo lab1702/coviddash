@@ -105,6 +105,11 @@ ui <- dashboardPage(
         menuSubItem(text = "State Hospital / 100k", tabName = "state_caphosp_tab")
       ),
       menuItem(
+        text = "Trajectories",
+        menuSubItem(text = "All States", tabName = "states_charts_tab"),
+        menuSubItem(text = "All Counties", tabName = "county_charts_tab")
+      ),
+      menuItem(
         text = "Heat Maps",
         menuItem(text = "States 2D", tabName = "state_2d_tab"),
         menuItem(text = "Counties 2D", tabName = "county_2d_tab"),
@@ -222,6 +227,16 @@ ui <- dashboardPage(
         box(plotOutput("state_caphosp_chart")),
         box(plotOutput("state_capicu_chart"), status = "warning"),
         box(plotOutput("state_capvent_chart"), status = "danger")
+      ),
+      tabItem(
+        tabName = "states_charts_tab",
+        box(plotlyOutput("states_cases_chart", height = 800), status = "warning"),
+        box(plotlyOutput("states_deaths_chart", height = 800), status = "danger")
+      ),
+      tabItem(
+        tabName = "county_charts_tab",
+        box(plotlyOutput("county_cases_chart", height = 800), status = "warning"),
+        box(plotlyOutput("county_deaths_chart", height = 800), status = "danger")
       ),
       tabItem(
         tabName = "state_rt_tab",
@@ -651,6 +666,99 @@ server <- function(input, output, session) {
       labs(x = "Date", y = "Currently on Ventilator / 100k", color = "State") +
       ggtitle("Daily State Currently on Ventilator / 100k people")
   })
+
+  output$states_cases_chart <- renderPlotly({
+    states_daily %>%
+      transmute(
+        State = state,
+        Date = date,
+        Cases = positive
+      ) %>%
+      arrange(State, Date) %>%
+      plot_ly(
+        x = ~Date,
+        y = ~Cases,
+        color = ~State,
+        type = "scatter",
+        mode = "lines"
+      ) %>%
+      layout(
+        title = list(text = "State Cases", x = 0)
+      )
+  })
+
+  output$states_deaths_chart <- renderPlotly({
+    states_daily %>%
+      transmute(
+        State = state,
+        Date = date,
+        Deaths = death
+      ) %>%
+      arrange(State, Date) %>%
+      plot_ly(
+        x = ~Date,
+        y = ~Deaths,
+        color = ~State,
+        type = "scatter",
+        mode = "lines"
+      ) %>%
+      layout(
+        title = list(text = "State Deaths", x = 0)
+      )
+  })
+
+  output$county_cases_chart <- renderPlotly({
+    raw_county_data %>%
+      filter(
+        state == input$state3d_select
+      ) %>%
+      group_by(county) %>%
+      arrange(date) %>%
+      transmute(
+        County = county,
+        Date = date,
+        Cases = cases
+      ) %>%
+      ungroup() %>%
+      arrange(County, Date) %>%
+      plot_ly(
+        x = ~Date,
+        y = ~Cases,
+        color = ~County,
+        type = "scatter",
+        mode = "lines"
+      ) %>%
+      layout(
+        title = list(text = paste(input$state3d_select, "- County Cases"), x = 0)
+      )
+  })
+
+  output$county_deaths_chart <- renderPlotly({
+    raw_county_data %>%
+      filter(
+        state == input$state3d_select
+      ) %>%
+      group_by(county) %>%
+      arrange(date) %>%
+      transmute(
+        County = county,
+        Date = date,
+        Deaths = deaths
+      ) %>%
+      ungroup() %>%
+      arrange(County, Date) %>%
+      plot_ly(
+        x = ~Date,
+        y = ~Deaths,
+        color = ~County,
+        type = "scatter",
+        mode = "lines"
+      ) %>%
+      layout(
+        title = list(text = paste(input$state3d_select, "- County Deaths"), x = 0)
+      )
+  })
+
 
   output$state_rt_chart <- renderPlotly({
     rt_data %>%
