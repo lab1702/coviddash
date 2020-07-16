@@ -10,7 +10,7 @@ library(choroplethrMaps)
 library(plotly)
 
 
-theme_set(theme_minimal(base_size = 14))
+theme_set(theme_minimal())
 
 
 data("df_pop_state")
@@ -106,8 +106,8 @@ ui <- dashboardPage(
       ),
       menuItem(
         text = "Heat Maps",
-        menuItem(text = "Positive Tests", tabName = "heatmaps_positive_tab"),
-        menuItem(text = "Deaths", tabName = "heatmaps_death_tab"),
+        menuItem(text = "States 2D", tabName = "state_2d_tab"),
+        menuItem(text = "Counties 2D", tabName = "county_2d_tab"),
         menuItem(text = "States 3D", tabName = "state_3d_tab"),
         menuItem(text = "Counties 3D", tabName = "county_3d_tab")
       ),
@@ -128,7 +128,7 @@ ui <- dashboardPage(
     ),
     selectInput(
       inputId = "state3d_select",
-      label = "Focus State in County 3D Chart:",
+      label = "Focus State in County Charts:",
       choices = sort(unique(raw_county_data$state)),
       selected = "Michigan"
     )
@@ -225,17 +225,19 @@ ui <- dashboardPage(
       ),
       tabItem(
         tabName = "state_rt_tab",
-        box(plotOutput("state_rt_chart", height = 800)),
-        box(plotOutput("state_rtcases_chart", height = 800), status = "warning"),
+        box(plotlyOutput("state_rt_chart", height = 800)),
+        box(plotlyOutput("state_rtcases_chart", height = 800), status = "warning"),
         box("Rt = Average number of people who become infected by an infectious person. Rt > 1 = the virus will spread quickly, Rt < 1 = the virus will stop spreading. Data on this page is sourced from https://rt.live", width = 12)
       ),
       tabItem(
-        tabName = "heatmaps_positive_tab",
-        box(plotOutput("state_positive_heatmap", height = 800), status = "warning", width = 12)
+        tabName = "state_2d_tab",
+        box(plotlyOutput("state_positive_heatmap", height = 800), status = "warning"),
+        box(plotlyOutput("state_death_heatmap", height = 800), status = "danger")
       ),
       tabItem(
-        tabName = "heatmaps_death_tab",
-        box(plotOutput("state_death_heatmap", height = 800), status = "danger", width = 12)
+        tabName = "county_2d_tab",
+        box(plotlyOutput("county_positive_heatmap", height = 800), status = "warning"),
+        box(plotlyOutput("county_death_heatmap", height = 800), status = "danger")
       ),
       tabItem(
         tabName = "state_capita_tab",
@@ -260,11 +262,13 @@ ui <- dashboardPage(
       ),
       tabItem(
         tabName = "state_3d_tab",
-        box(plotlyOutput("state_3d_chart2", height = 800), status = "danger", width = 12)
+        box(plotlyOutput("state_3d_chart1", height = 800), status = "warning"),
+        box(plotlyOutput("state_3d_chart2", height = 800), status = "danger")
       ),
       tabItem(
         tabName = "county_3d_tab",
-        box(plotlyOutput("county_3d_chart2", height = 800), status = "danger", width = 12)
+        box(plotlyOutput("county_3d_chart1", height = 800), status = "warning"),
+        box(plotlyOutput("county_3d_chart2", height = 800), status = "danger")
       ),
       tabItem(
         tabName = "data_tables_tab",
@@ -648,67 +652,256 @@ server <- function(input, output, session) {
       ggtitle("Daily State Currently on Ventilator / 100k people")
   })
 
-  output$state_rt_chart <- renderPlot({
+  output$state_rt_chart <- renderPlotly({
     rt_data %>%
       filter(region %in% toupper(input$statepicker)) %>%
-      ggplot(aes(x = as.Date(date), y = mean, color = region)) +
-      geom_hline(yintercept = 1, color = "dimgray") +
-      geom_point() +
-      labs(x = "Date", y = "Rt", color = "State") +
-      ggtitle("Daily State Rt")
+      transmute(
+        Date = date,
+        Rt = mean,
+        State = region
+      ) %>%
+      arrange(State, Date) %>%
+      plot_ly(
+        x = ~Date,
+        y = ~Rt,
+        color = ~State,
+        type = "scatter",
+        mode = "lines"
+      ) %>%
+      layout(
+        title = list(text = "Daily State Rt", x = 0)
+      )
   })
 
-  output$state_rtcases_chart <- renderPlot({
+  output$state_rtcases_chart <- renderPlotly({
     rt_data %>%
       filter(region %in% toupper(input$statepicker)) %>%
       group_by(region) %>%
-      mutate(rmean = rollmean(x = new_cases, k = 7, fill = NA)) %>%
+      arrange(date) %>%
+      transmute(
+        Date = date,
+        Cases = new_cases,
+        AvgCases = rollmean(x = new_cases, k = 7, fill = NA),
+        State = region
+      ) %>%
       ungroup() %>%
-      ggplot(aes(x = as.Date(date), y = new_cases, color = region)) +
-      geom_hline(yintercept = 1, color = "dimgray") +
-      geom_point() +
-      geom_line(aes(y = rmean), size = 1) +
-      scale_y_continuous(labels = scales::comma) +
-      labs(x = "Date", y = "New Cases", color = "State") +
-      ggtitle("Daily State New Cases")
+      arrange(State, Date) %>%
+      plot_ly(
+        x = ~Date,
+        y = ~Cases,
+        color = ~State,
+        type = "scatter",
+        mode = "markers"
+      ) %>%
+      add_lines(
+        y = ~AvgCases
+      ) %>%
+      layout(
+        title = list(text = "Daily State New Cases", x = 0)
+      )
   })
 
-  output$state_positive_heatmap <- renderPlot({
+  output$state_positive_heatmap <- renderPlotly({
     states_daily %>%
+      filter(date >= "2020-03-01") %>%
       group_by(state) %>%
-      arrange(date) %>%
-      mutate(rmean = rollmean(x = positiveIncrease, k = 7, na.pad = TRUE)) %>%
+      transmute(
+        Date = date,
+        State = state,
+        Positives = rollmean(x = positiveIncrease, k = 7, fill = NA)
+      ) %>%
       ungroup() %>%
-      ggplot(aes(x = date, y = fct_rev(state), fill = rmean)) +
-      geom_hline(
-        data = states_info %>%
-          filter(state %in% toupper(input$statepicker)),
-        aes(yintercept = state, color = state),
-        size = 1
-      ) +
-      geom_tile(color = "white") +
-      scale_fill_viridis_c(labels = scales::comma, direction = -1, option = "B") +
-      labs(x = "Date", y = "States", fill = "", color = "") +
-      ggtitle("Rolling 7 Day Average of Positive Tests")
+      arrange(State, Date) %>%
+      plot_ly(
+        x = ~Date,
+        y = ~State,
+        z = ~Positives,
+        type = "heatmap"
+      ) %>%
+      layout(
+        yaxis = list(autorange = "reversed"),
+        title = list(text = "State Positive Tests - Rolling 7 Day Average", x = 0)
+      )
   })
 
-  output$state_death_heatmap <- renderPlot({
+  output$state_death_heatmap <- renderPlotly({
     states_daily %>%
+      filter(date >= "2020-03-01") %>%
       group_by(state) %>%
       arrange(date) %>%
-      mutate(rmean = rollmean(x = deathIncrease, k = 7, na.pad = TRUE)) %>%
+      transmute(
+        Date = date,
+        State = state,
+        Deaths = rollmean(x = deathIncrease, k = 7, fill = NA)
+      ) %>%
       ungroup() %>%
-      ggplot(aes(x = date, y = fct_rev(state), fill = rmean)) +
-      geom_hline(
-        data = states_info %>%
-          filter(state %in% toupper(input$statepicker)),
-        aes(yintercept = state, color = state),
-        size = 1
-      ) +
-      geom_tile(color = "white") +
-      scale_fill_viridis_c(labels = scales::comma, direction = -1, option = "B") +
-      labs(x = "Date", y = "States", fill = "", color = "") +
-      ggtitle("Rolling 7 Day Average of Deaths")
+      arrange(State, Date) %>%
+      plot_ly(
+        x = ~Date,
+        y = ~State,
+        z = ~Deaths,
+        type = "heatmap"
+      ) %>%
+      layout(
+        yaxis = list(autorange = "reversed"),
+        title = list(text = "State Deaths - Rolling 7 Day Average", x = 0)
+      )
+  })
+
+  output$county_positive_heatmap <- renderPlotly({
+    raw_county_data %>%
+      filter(
+        state == input$state3d_select
+      ) %>%
+      group_by(county) %>%
+      arrange(date) %>%
+      transmute(
+        County = county,
+        Date = date,
+        Cases = rollmean(x = c(min(cases), diff(cases)), k = 7, fill = NA)
+      ) %>%
+      ungroup() %>%
+      arrange(County, Date) %>%
+      plot_ly(
+        x = ~Date,
+        y = ~County,
+        z = ~Cases,
+        type = "heatmap"
+      ) %>%
+      layout(
+        yaxis = list(autorange = "reversed"),
+        title = list(text = paste(input$state3d_select, "- County Cases - Rolling 7 Day Average"), x = 0)
+      )
+  })
+
+  output$county_death_heatmap <- renderPlotly({
+    raw_county_data %>%
+      filter(
+        state == input$state3d_select
+      ) %>%
+      group_by(county) %>%
+      arrange(date) %>%
+      transmute(
+        County = county,
+        Date = date,
+        Deaths = rollmean(x = c(min(deaths), diff(deaths)), k = 7, fill = NA)
+      ) %>%
+      ungroup() %>%
+      arrange(County, Date) %>%
+      plot_ly(
+        x = ~Date,
+        y = ~County,
+        z = ~Deaths,
+        type = "heatmap"
+      ) %>%
+      layout(
+        yaxis = list(autorange = "reversed"),
+        title = list(text = paste(input$state3d_select, "- County Deaths - Rolling 7 Day Average"), x = 0)
+      )
+  })
+
+  output$state_3d_chart1 <- renderPlotly({
+    states_daily %>%
+      filter(date >= "2020-03-01") %>%
+      group_by(state) %>%
+      arrange(date) %>%
+      transmute(
+        State = state,
+        Date = date,
+        Positives = rollmean(x = positiveIncrease, k = 7, fill = NA)
+      ) %>%
+      ungroup() %>%
+      arrange(State, Date) %>%
+      plot_ly(
+        x = ~State,
+        y = ~Date,
+        z = ~Positives,
+        intensity = ~Positives,
+        colors = "Paired",
+        type = "mesh3d"
+      ) %>%
+      layout(
+        title = list(text = "Positive Tests by State - Rolling 7 Day Average", x = 0)
+      )
+  })
+
+  output$state_3d_chart2 <- renderPlotly({
+    states_daily %>%
+      filter(date >= "2020-03-01") %>%
+      group_by(state) %>%
+      arrange(date) %>%
+      transmute(
+        State = state,
+        Date = date,
+        Deaths = rollmean(x = deathIncrease, k = 7, fill = NA)
+      ) %>%
+      ungroup() %>%
+      arrange(State, Date) %>%
+      plot_ly(
+        x = ~State,
+        y = ~Date,
+        z = ~Deaths,
+        intensity = ~Deaths,
+        colors = "Paired",
+        type = "mesh3d"
+      ) %>%
+      layout(
+        title = list(text = "Deaths by State - Rolling 7 Day Average", x = 0)
+      )
+  })
+
+  output$county_3d_chart1 <- renderPlotly({
+    raw_county_data %>%
+      filter(
+        state == input$state3d_select
+      ) %>%
+      group_by(county) %>%
+      arrange(date) %>%
+      transmute(
+        County = county,
+        Date = date,
+        Cases = rollmean(x = c(min(cases), diff(cases)), k = 7, fill = NA)
+      ) %>%
+      ungroup() %>%
+      arrange(County, Date) %>%
+      plot_ly(
+        x = ~County,
+        y = ~Date,
+        z = ~Cases,
+        intensity = ~Cases,
+        colors = "Paired",
+        type = "mesh3d"
+      ) %>%
+      layout(
+        title = list(text = paste(input$state3d_select, "- Cases by County - Rolling 7 Day Average"), x = 0)
+      )
+  })
+
+  output$county_3d_chart2 <- renderPlotly({
+    raw_county_data %>%
+      filter(
+        state == input$state3d_select
+      ) %>%
+      group_by(county) %>%
+      arrange(date) %>%
+      transmute(
+        County = county,
+        Date = date,
+        Deaths = rollmean(x = c(min(deaths), diff(deaths)), k = 7, fill = NA)
+      ) %>%
+      ungroup() %>%
+      arrange(County, Date) %>%
+      plot_ly(
+        x = ~County,
+        y = ~Date,
+        z = ~Deaths,
+        intensity = ~Deaths,
+        colors = "Paired",
+        type = "mesh3d"
+      ) %>%
+      layout(
+        title = list(text = paste(input$state3d_select, "- Deaths by County - Rolling 7 Day Average"), x = 0)
+      )
   })
 
   output$cap_cases_map <- renderPlot({
@@ -910,57 +1103,6 @@ server <- function(input, output, session) {
         Deaths = scales::comma(deaths),
         `Deaths / 100k` = scales::comma(value)
       )
-  })
-
-  output$county_3d_chart2 <- renderPlotly({
-    raw_county_data %>%
-      filter(
-        state == input$state3d_select,
-        county != "Unknown"
-      ) %>%
-      group_by(county) %>%
-      arrange(date) %>%
-      transmute(
-        County = county,
-        Date = date,
-        Deaths = c(min(deaths), diff(deaths)),
-      ) %>%
-      ungroup() %>%
-      arrange(County, Date) %>%
-      plot_ly(
-        x = ~County,
-        y = ~Date,
-        z = ~Deaths,
-        intensity = ~Deaths,
-        colors = tail(palette(), -1),
-        type = "mesh3d"
-      ) %>%
-      layout(
-        title = list(text = paste(input$state3d_select, "- Deaths by County and Date"))
-      ) %>%
-      config(displayModeBar = FALSE)
-  })
-
-  output$state_3d_chart2 <- renderPlotly({
-    states_daily %>%
-      transmute(
-        State = state,
-        Date = date,
-        Deaths = deathIncrease
-      ) %>%
-      arrange(State, Date) %>%
-      plot_ly(
-        x = ~State,
-        y = ~Date,
-        z = ~Deaths,
-        intensity = ~Deaths,
-        colors = tail(palette(), -1),
-        type = "mesh3d"
-      ) %>%
-      layout(
-        title = list(text = "Deaths by State and Date")
-      ) %>%
-      config(displayModeBar = FALSE)
   })
 
   output$data_us <- renderTable({
