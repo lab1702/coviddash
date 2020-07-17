@@ -107,7 +107,8 @@ ui <- dashboardPage(
       menuItem(
         text = "Trajectories",
         menuSubItem(text = "All States", tabName = "states_charts_tab"),
-        menuSubItem(text = "Focused Counties", tabName = "county_charts_tab")
+        menuSubItem(text = "Focused Counties", tabName = "county_charts_tab"),
+        menuSubItem(text = "State Death vs. Positive Tests", tabName = "states_overlay_tab")
       ),
       menuItem(
         text = "Heat Maps",
@@ -237,6 +238,10 @@ ui <- dashboardPage(
         tabName = "county_charts_tab",
         box(plotlyOutput("county_cases_chart", height = 800), status = "warning"),
         box(plotlyOutput("county_deaths_chart", height = 800), status = "danger")
+      ),
+      tabItem(
+        tabName = "states_overlay_tab",
+        box(plotlyOutput("state_overlay_chart", height = 800), width = 12),
       ),
       tabItem(
         tabName = "state_rt_tab",
@@ -759,6 +764,43 @@ server <- function(input, output, session) {
       )
   })
 
+  output$state_overlay_chart <- renderPlotly({
+    states_daily %>%
+      filter(state %in% input$statepicker) %>%
+      plot_ly(
+        x = ~date,
+        y = ~deathIncrease,
+        color = ~state,
+        type = "scatter",
+        mode = "lines"
+      ) %>%
+      add_trace(
+        x = ~date,
+        y = ~positiveIncrease,
+        color = ~state,
+        type = "scatter",
+        mode = "lines",
+        line = list(dash = "dot"),
+        yaxis = "y2"
+      ) %>%
+      layout(
+        xaxis = list(
+          title = "Date"
+        ),
+        yaxis = list(
+          title = "Deaths"
+        ),
+        yaxis2 = list(
+          overlaying = "y",
+          side = "right",
+          title = "Positive Tests"
+        ),
+        title = list(
+          text = "Deaths vs. Positive Tests - Solid lines are Deaths - Dotted lines are Positive Tests",
+          x = 0
+        )
+      )
+  })
 
   output$state_rt_chart <- renderPlotly({
     rt_data %>%
