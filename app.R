@@ -6,18 +6,8 @@ library(zoo)
 library(shiny)
 library(shinydashboard)
 library(plotly)
+library(rjson)
 
-
-df_state_pop <- tibble(
-  state.abb,
-  NAME = state.name
-) %>%
-  inner_join(read.csv("nst-est2019-alldata.csv")) %>%
-  transmute(
-    state = state.abb,
-    name = NAME,
-    pop = POPESTIMATE2019
-  )
 
 us_current <- read_csv("https://covidtracking.com/api/v1/us/current.csv")
 
@@ -31,7 +21,10 @@ states_current <- read_csv("https://covidtracking.com/api/v1/states/current.csv"
 states_daily <- read_csv("https://covidtracking.com/api/v1/states/daily.csv") %>%
   mutate(date = ymd(date))
 
-raw_county_data <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+raw_county_data <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>%
+  filter(!is.na(fips) & county != "Unknown")
+
+county_data <- fromJSON(file = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json")
 
 states_grade <- states_current %>%
   transmute(
@@ -69,9 +62,11 @@ ui <- dashboardPage(
         menuItem(text = "Counties 3D", tabName = "county_3d_tab")
       ),
       menuItem(
-        text = "Geographical Maps",
-        menuSubItem(text = "Positive Test Hotspots", tabName = "national_positive_hotspots_tab"),
-        menuSubItem(text = "Death Hotspots", tabName = "national_death_hotspots_tab")
+        text = "Geographical Hotspots",
+        menuSubItem(text = "State Positive Tests", tabName = "national_positive_hotspots_tab"),
+        menuSubItem(text = "State Death", tabName = "national_death_hotspots_tab"),
+        menuSubItem(text = "County Cases", tabName = "county_cases_hotspots_tab"),
+        menuSubItem(text = "County Deaths", tabName = "county_deaths_hotspots_tab")
       )
     ),
     hr(),
@@ -104,10 +99,6 @@ ui <- dashboardPage(
         box(
           HTML("County level data is downloaded from <A HREF='https://github.com/nytimes/covid-19-data'>https://github.com/nytimes/covid-19-data</A>"),
           title = "County Data Source"
-        ),
-        box(
-          HTML("Population data is from the <STRONG>nst-est2019-alldata.csv</STRONG> file downloaded from <A HREF='https://census.gov'>census.gov</A>"),
-          title = "Population Data Source"
         ),
         box(
           HTML("The inspiration for the 3D charts came from the 'Dr. Frank Models' Facebook group which can be found at <A HREF='https://www.facebook.com/groups/158015618707622'>https://www.facebook.com/groups/158015618707622</A>"),
@@ -174,6 +165,14 @@ ui <- dashboardPage(
       tabItem(
         tabName = "national_death_hotspots_tab",
         box(plotlyOutput("national_death_hotspots_map", height = 800), width = 12)
+      ),
+      tabItem(
+        tabName = "county_cases_hotspots_tab",
+        box(plotlyOutput("county_cases_hotspots_map", height = 800), width = 12)
+      ),
+      tabItem(
+        tabName = "county_deaths_hotspots_tab",
+        box(plotlyOutput("county_deaths_hotspots_map", height = 800), width = 12)
       ),
       tabItem(
         tabName = "state_3d_tab",
@@ -701,12 +700,9 @@ server <- function(input, output, session) {
 
   output$national_positive_hotspots_map <- renderPlotly({
     states_daily %>%
-      inner_join(states_info, by = "state") %>%
-      inner_join(df_state_pop) %>%
+      filter(date >= Sys.Date() - 7) %>%
       group_by(state) %>%
-      arrange(desc(date)) %>%
-      slice_head(7) %>%
-      summarise(Positives = 1000000 * sum(positiveIncrease, na.rm = TRUE) / pop) %>%
+      summarise(Positives = sum(positiveIncrease, na.rm = TRUE)) %>%
       ungroup() %>%
       plot_geo(
         locationmode = "USA-states"
@@ -717,19 +713,16 @@ server <- function(input, output, session) {
         color = ~Positives
       ) %>%
       layout(
-        title = list(text = "Positive Tests / 1M, Last 7 Days", x = 0),
+        title = list(text = "Positive Tests, Last 7 Days", x = 0),
         geo = list(scope = "usa")
       )
   })
 
   output$national_death_hotspots_map <- renderPlotly({
     states_daily %>%
-      inner_join(states_info, by = "state") %>%
-      inner_join(df_state_pop) %>%
+      filter(date >= Sys.Date() - 7) %>%
       group_by(state) %>%
-      arrange(desc(date)) %>%
-      slice_head(7) %>%
-      summarise(Deaths = 1000000 * sum(deathIncrease, na.rm = TRUE) / pop) %>%
+      summarise(Deaths = sum(deathIncrease, na.rm = TRUE)) %>%
       ungroup() %>%
       plot_geo(
         locationmode = "USA-states"
@@ -740,7 +733,51 @@ server <- function(input, output, session) {
         color = ~Deaths
       ) %>%
       layout(
-        title = list(text = "Deaths / 1M, Last 7 Days", x = 0),
+        title = list(text = "Deaths, Last 7 Days", x = 0),
+        geo = list(scope = "usa")
+      )
+  })
+
+  output$county_cases_hotspots_map <- renderPlotly({
+    raw_county_data %>%
+      filter(date >= Sys.Date() - 7) %>%
+      group_by(state, county, fips) %>%
+      summarise(Cases = max(cases, na.rm = TRUE) - min(cases, na.rm = TRUE)) %>%
+      ungroup() %>%
+      plot_ly() %>%
+      add_trace(
+        type = "choropleth",
+        geojson = county_data,
+        locations = ~fips,
+        z = ~Cases,
+        text = ~ paste(county, state, sep = "<br />"),
+        color = ~Cases,
+        marker = list(line = list(width = 0))
+      ) %>%
+      layout(
+        title = list(text = "Cases, Last 7 Days", x = 0),
+        geo = list(scope = "usa")
+      )
+  })
+
+  output$county_deaths_hotspots_map <- renderPlotly({
+    raw_county_data %>%
+      filter(date >= Sys.Date() - 7) %>%
+      group_by(state, county, fips) %>%
+      summarise(Deaths = max(deaths, na.rm = TRUE) - min(deaths, na.rm = TRUE)) %>%
+      ungroup() %>%
+      plot_ly() %>%
+      add_trace(
+        type = "choropleth",
+        geojson = county_data,
+        locations = ~fips,
+        z = ~Deaths,
+        text = ~ paste(county, state, sep = "<br />"),
+        color = ~Deaths,
+        marker = list(line = list(width = 0))
+      ) %>%
+      layout(
+        title = list(text = "Deaths, Last 7 Days", x = 0),
         geo = list(scope = "usa")
       )
   })
