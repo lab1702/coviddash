@@ -2,15 +2,11 @@
 library(tidyverse)
 library(lubridate)
 library(zoo)
-library(rvest)
 library(shiny)
 library(shinydashboard)
 library(choroplethr)
 library(choroplethrMaps)
 library(plotly)
-
-
-# theme_set(theme_minimal())
 
 
 data("df_pop_state")
@@ -28,8 +24,6 @@ states_current <- read_csv("https://covidtracking.com/api/v1/states/current.csv"
 
 states_daily <- read_csv("https://covidtracking.com/api/v1/states/daily.csv") %>%
   mutate(date = ymd(date))
-
-rt_data <- read_csv("https://d14wlfuexuxgcm.cloudfront.net/covid/rt.csv")
 
 raw_county_data <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
 
@@ -91,10 +85,9 @@ ui <- dashboardPage(
   sidebar = dashboardSidebar(
     sidebarMenu(
       menuItem(text = "About", tabName = "about_tab"),
-      menuItem(text = "Cumulative Counts", tabName = "total_tab"),
-      menuItem(text = "Cumulative Percentages", tabName = "perc_tab"),
-      menuItem(text = "Daily State Rt", tabName = "state_rt_tab"),
       menuItem(text = "Summary Tables", tabName = "data_tables_tab"),
+      menuItem(text = "Daily National Combined", tabName = "us_overlay_tab"),
+      menuItem(text = "Daily State Combined", tabName = "states_overlay_tab"),
       menuItem(
         text = "Daily Counts",
         menuSubItem(text = "National", tabName = "us_charts_tab"),
@@ -105,10 +98,11 @@ ui <- dashboardPage(
         menuSubItem(text = "State Hospital / 100k", tabName = "state_caphosp_tab")
       ),
       menuItem(
-        text = "Trajectories",
+        text = "Cumulative Counts",
         menuSubItem(text = "All States", tabName = "states_charts_tab"),
         menuSubItem(text = "Focused Counties", tabName = "county_charts_tab"),
-        menuSubItem(text = "State Death vs. Positive Tests", tabName = "states_overlay_tab")
+        menuSubItem(text = "Separated", tabName = "total_tab"),
+        menuSubItem(text = "Percentages", tabName = "perc_tab")
       ),
       menuItem(
         text = "Heat Maps",
@@ -118,7 +112,7 @@ ui <- dashboardPage(
         menuItem(text = "Counties 3D", tabName = "county_3d_tab")
       ),
       menuItem(
-        text = "Maps",
+        text = "Geographical Maps",
         menuSubItem(text = "All States", tabName = "state_capita_tab"),
         menuSubItem(text = "All Counties", tabName = "county_natcapita_tab"),
         menuSubItem(text = "Focused Counties", tabName = "county_capita_tab")
@@ -147,11 +141,6 @@ ui <- dashboardPage(
           plotOutput("data_quality_map")
         ),
         box(
-          "This is still a test dashboard and may contain errors.",
-          title = "About",
-          status = "danger"
-        ),
-        box(
           HTML("National and State data is downloaded from <A HREF='https://covidtracking.com/api'>https://covidtracking.com/api</A>"),
           title = "National and State Data Source"
         ),
@@ -160,21 +149,12 @@ ui <- dashboardPage(
           title = "County Data Source"
         ),
         box(
-          HTML("Rt data is available from <A HREF='https://rt.live'>https://rt.live</A>"),
-          title = "Rt Data Source"
-        ),
-        box(
           HTML("Population data is pulled from the 2012 US American Community Survey (ACS) 5 year estimates included in the <A HREF='https://cran.r-project.org/package=choroplethr'>choroplethr</A> R package."),
           title = "Population Data Source"
         ),
         box(
           HTML("The inspiration for the 3D charts came from the 'Dr. Frank Models' Facebook group which can be found at <A HREF='https://www.facebook.com/groups/158015618707622'>https://www.facebook.com/groups/158015618707622</A>"),
           title = "3D Charts"
-        ),
-        box(
-          HTML("Please consider helping the Folding@home project by installing the software from <A HREF='https://foldingathome.org'>https://foldingathome.org</A> which lets you share unused computer time with COVID-19 (and other) researchers around the world."),
-          title = "Folding@home",
-          status = "success"
         ),
         box(
           HTML("The source code for this R/Shiny app is available at <A HREF='https://github.com/lab1702/coviddash'>https://github.com/lab1702/coviddash</A>"),
@@ -240,14 +220,12 @@ ui <- dashboardPage(
         box(plotlyOutput("county_deaths_chart", height = 800), status = "danger")
       ),
       tabItem(
-        tabName = "states_overlay_tab",
-        box(plotlyOutput("state_overlay_chart", height = 800), width = 12),
+        tabName = "us_overlay_tab",
+        box(plotlyOutput("us_overlay_chart", height = 800), width = 12),
       ),
       tabItem(
-        tabName = "state_rt_tab",
-        box(plotlyOutput("state_rt_chart", height = 800)),
-        box(plotlyOutput("state_rtcases_chart", height = 800), status = "warning"),
-        box("Rt = Average number of people who become infected by an infectious person. Rt > 1 = the virus will spread quickly, Rt < 1 = the virus will stop spreading. Data on this page is sourced from https://rt.live", width = 12)
+        tabName = "states_overlay_tab",
+        box(plotlyOutput("state_overlay_chart", height = 800), width = 12),
       ),
       tabItem(
         tabName = "state_2d_tab",
@@ -764,23 +742,24 @@ server <- function(input, output, session) {
       )
   })
 
-  output$state_overlay_chart <- renderPlotly({
-    states_daily %>%
-      filter(state %in% input$statepicker) %>%
+  output$us_overlay_chart <- renderPlotly({
+    us_daily %>%
       plot_ly(
         x = ~date,
         y = ~deathIncrease,
-        color = ~state,
+        color = I("red"),
         type = "scatter",
-        mode = "lines"
+        mode = "lines",
+        name = "Deaths"
       ) %>%
       add_trace(
         x = ~date,
         y = ~positiveIncrease,
-        color = ~state,
+        color = I("black"),
         type = "scatter",
         mode = "lines",
         line = list(dash = "dot"),
+        name = "Positive Tests",
         yaxis = "y2"
       ) %>%
       layout(
@@ -796,58 +775,49 @@ server <- function(input, output, session) {
           title = "Positive Tests"
         ),
         title = list(
-          text = "Deaths vs. Positive Tests - Solid lines are Deaths - Dotted lines are Positive Tests",
+          text = "Daily National Deaths & Positive Tests",
           x = 0
         )
       )
   })
 
-  output$state_rt_chart <- renderPlotly({
-    rt_data %>%
-      filter(region %in% toupper(input$statepicker)) %>%
-      transmute(
-        Date = date,
-        Rt = mean,
-        State = region
-      ) %>%
-      arrange(State, Date) %>%
+  output$state_overlay_chart <- renderPlotly({
+    states_daily %>%
+      filter(state %in% input$statepicker) %>%
       plot_ly(
-        x = ~Date,
-        y = ~Rt,
-        color = ~State,
+        x = ~date,
+        y = ~deathIncrease,
+        color = ~state,
         type = "scatter",
-        mode = "lines"
+        mode = "lines",
+        legendgroup = "group1"
+      ) %>%
+      add_trace(
+        x = ~date,
+        y = ~positiveIncrease,
+        color = ~state,
+        type = "scatter",
+        mode = "lines",
+        line = list(dash = "dot"),
+        yaxis = "y2",
+        legendgroup = "group2"
       ) %>%
       layout(
-        title = list(text = "Daily State Rt", x = 0)
-      )
-  })
-
-  output$state_rtcases_chart <- renderPlotly({
-    rt_data %>%
-      filter(region %in% toupper(input$statepicker)) %>%
-      group_by(region) %>%
-      arrange(date) %>%
-      transmute(
-        Date = date,
-        Cases = new_cases,
-        AvgCases = rollmean(x = new_cases, k = 7, fill = NA),
-        State = region
-      ) %>%
-      ungroup() %>%
-      arrange(State, Date) %>%
-      plot_ly(
-        x = ~Date,
-        y = ~Cases,
-        color = ~State,
-        type = "scatter",
-        mode = "markers"
-      ) %>%
-      add_lines(
-        y = ~AvgCases
-      ) %>%
-      layout(
-        title = list(text = "Daily State New Cases", x = 0)
+        xaxis = list(
+          title = "Date"
+        ),
+        yaxis = list(
+          title = "Deaths"
+        ),
+        yaxis2 = list(
+          overlaying = "y",
+          side = "right",
+          title = "Positive Tests"
+        ),
+        title = list(
+          text = "Daily State Deaths & Positive Tests",
+          x = 0
+        )
       )
   })
 
