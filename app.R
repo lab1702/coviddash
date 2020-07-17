@@ -32,6 +32,12 @@ states_grade <- states_current %>%
     Grade = ordered(dataQualityGrade, levels = c("A+", "A", "B", "C", "D"))
   )
 
+data_summary <- tibble(
+  National = format(max(us_daily$date), "%A, %B %d, %Y"),
+  State = format(max(states_daily$date), "%A, %B %d, %Y"),
+  County = format(max(raw_county_data$date), "%A, %B %d, %Y")
+)
+
 
 ui <- dashboardPage(
   header = dashboardHeader(title = "COVID-19"),
@@ -88,6 +94,10 @@ ui <- dashboardPage(
     tabItems(
       tabItem(
         tabName = "about_tab",
+        box(
+          tableOutput("data_summary_table"),
+          title = "Most Recent Data By Type"
+        ),
         box(
           tableOutput("data_quality_table"),
           title = "Data Quality, according to covidtracking.com"
@@ -690,14 +700,6 @@ server <- function(input, output, session) {
       )
   })
 
-  output$data_quality_table <- renderTable({
-    states_grade %>%
-      group_by(Grade) %>%
-      arrange(State) %>%
-      summarise(States = paste(State, collapse = ", ")) %>%
-      ungroup()
-  })
-
   output$national_positive_hotspots_map <- renderPlotly({
     states_daily %>%
       filter(date >= Sys.Date() - 7) %>%
@@ -782,6 +784,18 @@ server <- function(input, output, session) {
       )
   })
 
+  output$data_summary_table <- renderTable({
+    data_summary
+  })
+  
+  output$data_quality_table <- renderTable({
+    states_grade %>%
+      group_by(Grade) %>%
+      arrange(State) %>%
+      summarise(States = paste(State, collapse = ", ")) %>%
+      ungroup()
+  })
+  
   output$data_us <- renderTable({
     us_current %>%
       transmute(
