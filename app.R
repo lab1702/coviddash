@@ -304,7 +304,7 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
-        title = list(text = "National Cases", x = 0)
+        title = list(text = "National Positive Tests", x = 0)
       )
   })
 
@@ -342,7 +342,7 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
-        title = list(text = "State Cases", x = 0)
+        title = list(text = "State Positive Tests", x = 0)
       )
   })
 
@@ -451,7 +451,7 @@ server <- function(input, output, session) {
           title = "Positive Tests"
         ),
         title = list(
-          text = "Daily National Deaths & Positive Tests",
+          text = "National Deaths & Positive Tests",
           x = 0
         )
       )
@@ -491,7 +491,7 @@ server <- function(input, output, session) {
           title = "Positive Tests"
         ),
         title = list(
-          text = "Daily State Deaths & Positive Tests",
+          text = "State Deaths & Positive Tests",
           x = 0
         )
       )
@@ -617,7 +617,7 @@ server <- function(input, output, session) {
         type = "mesh3d"
       ) %>%
       layout(
-        title = list(text = "Positive Tests by State - Rolling 7 Day Average", x = 0)
+        title = list(text = "State Positive Tests - Rolling 7 Day Average", x = 0)
       )
   })
 
@@ -642,7 +642,7 @@ server <- function(input, output, session) {
         type = "mesh3d"
       ) %>%
       layout(
-        title = list(text = "Deaths by State - Rolling 7 Day Average", x = 0)
+        title = list(text = "State Deaths - Rolling 7 Day Average", x = 0)
       )
   })
 
@@ -669,7 +669,7 @@ server <- function(input, output, session) {
         type = "mesh3d"
       ) %>%
       layout(
-        title = list(text = paste(input$state3d_select, "- Cases by County - Rolling 7 Day Average"), x = 0)
+        title = list(text = paste(input$state3d_select, "- County Cases - Rolling 7 Day Average"), x = 0)
       )
   })
 
@@ -696,7 +696,7 @@ server <- function(input, output, session) {
         type = "mesh3d"
       ) %>%
       layout(
-        title = list(text = paste(input$state3d_select, "- Deaths by County - Rolling 7 Day Average"), x = 0)
+        title = list(text = paste(input$state3d_select, "- County Deaths - Rolling 7 Day Average"), x = 0)
       )
   })
 
@@ -715,7 +715,7 @@ server <- function(input, output, session) {
         color = ~Positives
       ) %>%
       layout(
-        title = list(text = "Positive Tests, Last 7 Days", x = 0),
+        title = list(text = "State Positive Tests - Last 7 Days", x = 0),
         geo = list(scope = "usa")
       )
   })
@@ -735,7 +735,7 @@ server <- function(input, output, session) {
         color = ~Deaths
       ) %>%
       layout(
-        title = list(text = "Deaths, Last 7 Days", x = 0),
+        title = list(text = "State Deaths - Last 7 Days", x = 0),
         geo = list(scope = "usa")
       )
   })
@@ -757,7 +757,7 @@ server <- function(input, output, session) {
         marker = list(line = list(width = 0))
       ) %>%
       layout(
-        title = list(text = "Cases, Last 7 Days", x = 0),
+        title = list(text = "County Cases - Last 7 Days", x = 0),
         geo = list(scope = "usa")
       )
   })
@@ -779,7 +779,7 @@ server <- function(input, output, session) {
         marker = list(line = list(width = 0))
       ) %>%
       layout(
-        title = list(text = "Deaths, Last 7 Days", x = 0),
+        title = list(text = "County Deaths - Last 7 Days", x = 0),
         geo = list(scope = "usa")
       )
   })
@@ -787,7 +787,7 @@ server <- function(input, output, session) {
   output$data_summary_table <- renderTable({
     data_summary
   })
-  
+
   output$data_quality_table <- renderTable({
     states_grade %>%
       group_by(Grade) %>%
@@ -795,7 +795,7 @@ server <- function(input, output, session) {
       summarise(States = paste(State, collapse = ", ")) %>%
       ungroup()
   })
-  
+
   output$data_us <- renderTable({
     us_current %>%
       transmute(
