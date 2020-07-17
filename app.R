@@ -10,7 +10,7 @@ library(choroplethrMaps)
 library(plotly)
 
 
-theme_set(theme_minimal())
+# theme_set(theme_minimal())
 
 
 data("df_pop_state")
@@ -107,7 +107,7 @@ ui <- dashboardPage(
       menuItem(
         text = "Trajectories",
         menuSubItem(text = "All States", tabName = "states_charts_tab"),
-        menuSubItem(text = "All Counties", tabName = "county_charts_tab")
+        menuSubItem(text = "Focused Counties", tabName = "county_charts_tab")
       ),
       menuItem(
         text = "Heat Maps",
@@ -258,8 +258,8 @@ ui <- dashboardPage(
         tabName = "state_capita_tab",
         box(plotOutput("cap_cases_map"), status = "warning"),
         box(plotOutput("cap_deaths_map"), status = "danger"),
-        box(tableOutput("cap_states_cases_table"), status = "warning", title = "Top 10 States by Cases / 100k people"),
-        box(tableOutput("cap_states_deaths_table"), status = "danger", title = "Top 10 States by Deaths / 100k people")
+        box(plotOutput("cap_hotcases_map"), status = "warning"),
+        box(plotOutput("cap_hotdeaths_map"), status = "danger")
       ),
       tabItem(
         tabName = "county_natcapita_tab",
@@ -1013,7 +1013,7 @@ server <- function(input, output, session) {
   })
 
   output$cap_cases_map <- renderPlot({
-    cc <- StateChoropleth$new(
+    state_choropleth(
       states_current %>%
         inner_join(states_info, by = "state") %>%
         mutate(region = tolower(name)) %>%
@@ -1022,18 +1022,32 @@ server <- function(input, output, session) {
         transmute(
           region,
           value = 100000 * positive / pop
-        )
+        ),
+      num_colors = 1,
+      title = "State Cases / 100k people - Total"
     )
+  })
 
-    cc$title <- "State Cases / 100k people"
-    cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
-
-    cc$render()
+  output$cap_hotcases_map <- renderPlot({
+    state_choropleth(
+      states_daily %>%
+        inner_join(states_info, by = "state") %>%
+        mutate(region = tolower(name)) %>%
+        inner_join(df_pop_state, by = "region") %>%
+        rename(pop = value) %>%
+        group_by(region) %>%
+        arrange(desc(date)) %>%
+        slice_head(7) %>%
+        summarise(value = 100000 * sum(positiveIncrease, na.rm = TRUE) / pop) %>%
+        ungroup() %>%
+        select(region, value),
+      num_colors = 1,
+      title = "State Cases / 100k people - Last 7 Days"
+    )
   })
 
   output$cap_deaths_map <- renderPlot({
-    cc <- StateChoropleth$new(
+    state_choropleth(
       states_current %>%
         inner_join(states_info, by = "state") %>%
         mutate(region = tolower(name)) %>%
@@ -1042,95 +1056,52 @@ server <- function(input, output, session) {
         transmute(
           region,
           value = 100000 * death / pop
-        )
+        ),
+      num_colors = 1,
+      title = "State Deaths / 100k people - Total"
     )
-
-    cc$title <- "State Deaths / 100k people"
-    cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
-
-    cc$render()
   })
 
-  output$cap_states_cases_table <- renderTable({
-    states_current %>%
-      inner_join(states_info, by = "state") %>%
-      mutate(region = tolower(name)) %>%
-      inner_join(df_pop_state, by = "region") %>%
-      rename(pop = value) %>%
-      transmute(
-        State = state,
-        Population = pop,
-        Cases = positive,
-        Deaths = death,
-        `Cases / 100k` = 100000 * positive / pop
-      ) %>%
-      arrange(
-        desc(`Cases / 100k`),
-        desc(Cases)
-      ) %>%
-      head(10) %>%
-      mutate(
-        `Population` = scales::comma(Population),
-        `Cases` = scales::comma(Cases),
-        `Deaths` = scales::comma(Deaths),
-        `Cases / 100k` = scales::comma(`Cases / 100k`)
-      )
+  output$cap_hotdeaths_map <- renderPlot({
+    state_choropleth(
+      states_daily %>%
+        inner_join(states_info, by = "state") %>%
+        mutate(region = tolower(name)) %>%
+        inner_join(df_pop_state, by = "region") %>%
+        rename(pop = value) %>%
+        group_by(region) %>%
+        arrange(desc(date)) %>%
+        slice_head(7) %>%
+        summarise(value = 100000 * sum(deathIncrease, na.rm = TRUE) / pop) %>%
+        ungroup() %>%
+        select(region, value),
+      num_colors = 1,
+      title = "State Deaths / 100k people - Last 7 Days"
+    )
   })
 
-  output$cap_states_deaths_table <- renderTable({
-    states_current %>%
-      inner_join(states_info, by = "state") %>%
-      mutate(region = tolower(name)) %>%
-      inner_join(df_pop_state, by = "region") %>%
-      rename(pop = value) %>%
-      transmute(
-        State = state,
-        Population = pop,
-        Cases = positive,
-        Deaths = death,
-        `Deaths / 100k` = 100000 * death / pop
-      ) %>%
-      arrange(
-        desc(`Deaths / 100k`),
-        desc(Deaths)
-      ) %>%
-      head(10) %>%
-      mutate(
-        `Population` = scales::comma(Population),
-        `Cases` = scales::comma(Cases),
-        `Deaths` = scales::comma(Deaths),
-        `Deaths / 100k` = scales::comma(`Deaths / 100k`)
-      )
-  })
 
   output$data_quality_map <- renderPlot({
-    cc <- StateChoropleth$new(states_grade)
-
-    cc$title <- "Data Quality by State - According to covidtracking.com"
-    cc$ggplot_scale <- scale_fill_brewer(palette = "RdYlGn", direction = -1)
-
-    cc$render()
+    state_choropleth(
+      states_grade,
+      title = "Data Quality by State - According to covidtracking.com"
+    )
   })
 
   output$cty_natcases_map <- renderPlot({
-    cc <- CountyChoropleth$new(county_data_cases)
-
-    cc$title <- "County Cases / 100k people"
-    cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
-
-    cc$render()
+    county_choropleth(
+      county_data_cases,
+      num_colors = 1,
+      title = "County Cases / 100k people"
+    )
   })
 
   output$cty_natdeaths_map <- renderPlot({
-    cc <- CountyChoropleth$new(county_data_deaths)
-
-    cc$title <- "County Deaths / 100k people"
-    cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
-
-    cc$render()
+    county_choropleth(
+      county_data_deaths,
+      num_colors = 1,
+      title = "County Deaths / 100k people"
+    )
   })
 
   output$cty_natcases_table <- renderTable({
@@ -1162,25 +1133,21 @@ server <- function(input, output, session) {
   })
 
   output$cty_cases_map <- renderPlot({
-    cc <- CountyChoropleth$new(county_data_cases)
-
-    cc$title <- "County Cases / 100k people"
-    cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
-    cc$set_zoom(tolower(df_pop_state2$name[df_pop_state2$state %in% input$statepicker]))
-
-    cc$render()
+    county_choropleth(
+      county_data_cases,
+      num_colors = 1,
+      state_zoom = tolower(df_pop_state2$name[df_pop_state2$state %in% input$statepicker]),
+      title = "County Cases / 100k people"
+    )
   })
 
   output$cty_deaths_map <- renderPlot({
-    cc <- CountyChoropleth$new(county_data_deaths)
-
-    cc$title <- "County Deaths / 100k people"
-    cc$set_num_colors(1)
-    cc$ggplot_scale <- scale_fill_distiller("", palette = "RdYlGn", na.value = "white", direction = -1, limits = c(0, NA))
-    cc$set_zoom(tolower(df_pop_state2$name[df_pop_state2$state %in% input$statepicker]))
-
-    cc$render()
+    county_choropleth(
+      county_data_deaths,
+      num_colors = 1,
+      state_zoom = tolower(df_pop_state2$name[df_pop_state2$state %in% input$statepicker]),
+      title = "County Deaths / 100k people"
+    )
   })
 
   output$cty_cases_table <- renderTable({
