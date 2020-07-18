@@ -9,20 +9,36 @@ library(plotly)
 library(rjson)
 
 
+state_name_to_code <- function(s) {
+  sapply(s, function(x) {
+    case_when(
+      tolower(x) == "district of columbia" ~ "DC",
+      TRUE ~ state.abb[tolower(state.name) == tolower(x)]
+    )
+  })
+}
+
 us_current <- read_csv("https://covidtracking.com/api/v1/us/current.csv")
 
 us_daily <- read_csv("https://covidtracking.com/api/v1/us/daily.csv") %>%
   mutate(date = ymd(date))
 
-states_info <- read_csv("https://covidtracking.com/api/v1/states/info.csv")
+states_info <- read_csv("https://covidtracking.com/api/v1/states/info.csv") %>%
+  filter(state %in% c("DC", state.abb))
 
-states_current <- read_csv("https://covidtracking.com/api/v1/states/current.csv")
+states_current <- read_csv("https://covidtracking.com/api/v1/states/current.csv") %>%
+  filter(state %in% c("DC", state.abb))
 
 states_daily <- read_csv("https://covidtracking.com/api/v1/states/daily.csv") %>%
+  filter(state %in% c("DC", state.abb)) %>%
   mutate(date = ymd(date))
 
 raw_county_data <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>%
-  filter(!is.na(fips) & county != "Unknown")
+  filter(
+    state %in% c(state.name, "District of Columbia"),
+    !is.na(fips),
+    county != "Unknown"
+  )
 
 county_data <- fromJSON(file = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json")
 
@@ -79,13 +95,6 @@ ui <- dashboardPage(
       )
     ),
     hr(),
-    selectInput(
-      inputId = "statepicker",
-      label = "Compare States:",
-      choices = states_info$state,
-      selected = "MI",
-      multiple = TRUE
-    ),
     selectInput(
       inputId = "state3d_select",
       label = "Focus State:",
@@ -258,7 +267,7 @@ server <- function(input, output, session) {
   output$state_perc_pos_chart <- renderPlotly({
     states_daily %>%
       filter(
-        state %in% input$statepicker,
+        state %in% state_name_to_code(input$state3d_select),
         totalTestResultsIncrease > 1000,
         date >= Sys.Date() - 90
       ) %>%
@@ -268,14 +277,13 @@ server <- function(input, output, session) {
       plot_ly(
         x = ~date,
         y = ~value,
-        color = ~state,
         type = "scatter",
         mode = "lines"
       ) %>%
       layout(
         xaxis = list(title = "Date"),
         yaxis = list(title = "% Positive Tests", tickformat = "%"),
-        title = list(text = "State % Positive Tests", x = 0)
+        title = list(text = paste(input$state3d_select, "% Positive Tests"), x = 0)
       )
   })
 
@@ -299,7 +307,7 @@ server <- function(input, output, session) {
 
   output$state_hosp_chart <- renderPlotly({
     states_daily %>%
-      filter(state %in% input$statepicker) %>%
+      filter(state %in% state_name_to_code(input$state3d_select)) %>%
       transmute(
         State = state,
         Date = date,
@@ -309,12 +317,11 @@ server <- function(input, output, session) {
       plot_ly(
         x = ~Date,
         y = ~Hospitalized,
-        color = ~State,
         type = "scatter",
         mode = "lines"
       ) %>%
       layout(
-        title = list(text = "State Hospitalized", x = 0)
+        title = list(text = paste(input$state3d_select, "Hospitalized"), x = 0)
       )
   })
 
@@ -416,7 +423,7 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
-        title = list(text = paste(input$state3d_select, "- County Cases"), x = 0)
+        title = list(text = paste(input$state3d_select, "Cases by County"), x = 0)
       )
   })
 
@@ -442,7 +449,7 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
-        title = list(text = paste(input$state3d_select, "- County Deaths"), x = 0)
+        title = list(text = paste(input$state3d_select, "Deaths by County"), x = 0)
       )
   })
 
@@ -456,18 +463,18 @@ server <- function(input, output, session) {
         x = ~date,
         y = ~deathIncrease,
         color = I("red"),
+        name = "Deaths",
         type = "scatter",
-        mode = "lines",
-        name = "Deaths"
+        mode = "lines"
       ) %>%
       add_trace(
         x = ~date,
         y = ~positiveIncrease,
         color = I("black"),
+        name = "Positive Tests",
         type = "scatter",
         mode = "lines",
         line = list(dash = "dot"),
-        name = "Positive Tests",
         yaxis = "y2"
       ) %>%
       layout(
@@ -491,7 +498,7 @@ server <- function(input, output, session) {
 
   output$state_overlay_chart <- renderPlotly({
     states_daily %>%
-      filter(state %in% input$statepicker) %>%
+      filter(state == state_name_to_code(input$state3d_select)) %>%
       mutate(
         positiveIncrease = ifelse(positiveIncrease < 0, NA, positiveIncrease),
         deathIncrease = ifelse(deathIncrease < 0, NA, deathIncrease)
@@ -499,20 +506,20 @@ server <- function(input, output, session) {
       plot_ly(
         x = ~date,
         y = ~deathIncrease,
-        color = ~state,
+        color = I("red"),
+        name = "Deaths",
         type = "scatter",
-        mode = "lines",
-        legendgroup = "group1"
+        mode = "lines"
       ) %>%
       add_trace(
         x = ~date,
         y = ~positiveIncrease,
-        color = ~state,
+        color = I("black"),
+        name = "Positive Tests",
         type = "scatter",
         mode = "lines",
         line = list(dash = "dot"),
-        yaxis = "y2",
-        legendgroup = "group2"
+        yaxis = "y2"
       ) %>%
       layout(
         xaxis = list(
@@ -527,7 +534,7 @@ server <- function(input, output, session) {
           title = "Positive Tests"
         ),
         title = list(
-          text = "State Deaths & Positive Tests",
+          text = paste(input$state3d_select, "Deaths & Positive Tests"),
           x = 0
         )
       )
@@ -536,8 +543,8 @@ server <- function(input, output, session) {
   output$county_overlay_chart <- renderPlotly({
     raw_county_data %>%
       filter(
-        state == input$state3d_select,
-        county == input$county3d_select
+        state %in% input$state3d_select,
+        county %in% input$county3d_select
       ) %>%
       mutate(
         positiveIncrease = c(min(cases), diff(cases)),
@@ -580,7 +587,7 @@ server <- function(input, output, session) {
           title = "Cases"
         ),
         title = list(
-          text = paste(input$county3d_select, "-", input$state3d_select, "- County Deaths & Positive Tests"),
+          text = paste0(input$county3d_select, ", ", input$state3d_select, " Deaths & Cases"),
           x = 0
         )
       )
@@ -605,7 +612,7 @@ server <- function(input, output, session) {
       ) %>%
       layout(
         yaxis = list(autorange = "reversed"),
-        title = list(text = "State Positive Tests - Rolling 7 Day Average", x = 0)
+        title = list(text = "Positive Tests by State, Rolling 7 Day Average", x = 0)
       )
   })
 
@@ -629,7 +636,7 @@ server <- function(input, output, session) {
       ) %>%
       layout(
         yaxis = list(autorange = "reversed"),
-        title = list(text = "State Deaths - Rolling 7 Day Average", x = 0)
+        title = list(text = "Deaths by State, Rolling 7 Day Average", x = 0)
       )
   })
 
@@ -655,7 +662,7 @@ server <- function(input, output, session) {
       ) %>%
       layout(
         yaxis = list(autorange = "reversed"),
-        title = list(text = paste(input$state3d_select, "- County Cases - Rolling 7 Day Average"), x = 0)
+        title = list(text = paste(input$state3d_select, "Cases by County, Rolling 7 Day Average"), x = 0)
       )
   })
 
@@ -681,7 +688,7 @@ server <- function(input, output, session) {
       ) %>%
       layout(
         yaxis = list(autorange = "reversed"),
-        title = list(text = paste(input$state3d_select, "- County Deaths - Rolling 7 Day Average"), x = 0)
+        title = list(text = paste(input$state3d_select, "Deaths by County, Rolling 7 Day Average"), x = 0)
       )
   })
 
@@ -706,7 +713,7 @@ server <- function(input, output, session) {
         type = "mesh3d"
       ) %>%
       layout(
-        title = list(text = "State Positive Tests - Rolling 7 Day Average", x = 0)
+        title = list(text = "Positive Tests by State, Rolling 7 Day Average", x = 0)
       )
   })
 
@@ -731,7 +738,7 @@ server <- function(input, output, session) {
         type = "mesh3d"
       ) %>%
       layout(
-        title = list(text = "State Deaths - Rolling 7 Day Average", x = 0)
+        title = list(text = "Deaths by State, Rolling 7 Day Average", x = 0)
       )
   })
 
@@ -758,7 +765,7 @@ server <- function(input, output, session) {
         type = "mesh3d"
       ) %>%
       layout(
-        title = list(text = paste(input$state3d_select, "- County Cases - Rolling 7 Day Average"), x = 0)
+        title = list(text = paste(input$state3d_select, "Cases by County, Rolling 7 Day Average"), x = 0)
       )
   })
 
@@ -785,7 +792,7 @@ server <- function(input, output, session) {
         type = "mesh3d"
       ) %>%
       layout(
-        title = list(text = paste(input$state3d_select, "- County Deaths - Rolling 7 Day Average"), x = 0)
+        title = list(text = paste(input$state3d_select, "Deaths by County, Rolling 7 Day Average"), x = 0)
       )
   })
 
@@ -804,7 +811,7 @@ server <- function(input, output, session) {
         color = ~Positives
       ) %>%
       layout(
-        title = list(text = "State Positive Tests - Last 7 Days", x = 0),
+        title = list(text = "Positive Tests by State, Last 7 Days", x = 0),
         geo = list(scope = "usa")
       )
   })
@@ -824,7 +831,7 @@ server <- function(input, output, session) {
         color = ~Deaths
       ) %>%
       layout(
-        title = list(text = "State Deaths - Last 7 Days", x = 0),
+        title = list(text = "Deaths by State, Last 7 Days", x = 0),
         geo = list(scope = "usa")
       )
   })
@@ -849,7 +856,7 @@ server <- function(input, output, session) {
         marker = list(line = list(width = 0))
       ) %>%
       layout(
-        title = list(text = paste(input$state3d_select, "- County Cases - Last 7 Days"), x = 0),
+        title = list(text = paste(input$state3d_select, "Cases by County, Last 7 Days"), x = 0),
         geo = list(scope = "usa", fitbounds = "locations")
       )
   })
@@ -874,7 +881,7 @@ server <- function(input, output, session) {
         marker = list(line = list(width = 0))
       ) %>%
       layout(
-        title = list(text = paste(input$state3d_select, "- County Deaths - Last 7 Days"), x = 0),
+        title = list(text = paste(input$state3d_select, "Deaths by County, Last 7 Days"), x = 0),
         geo = list(scope = "usa", fitbounds = "locations")
       )
   })
@@ -896,7 +903,7 @@ server <- function(input, output, session) {
         marker = list(line = list(width = 0))
       ) %>%
       layout(
-        title = list(text = "County Cases - Last 7 Days", x = 0),
+        title = list(text = "Cases by County, Last 7 Days", x = 0),
         geo = list(scope = "usa")
       )
   })
@@ -918,7 +925,7 @@ server <- function(input, output, session) {
         marker = list(line = list(width = 0))
       ) %>%
       layout(
-        title = list(text = "County Deaths - Last 7 Days", x = 0),
+        title = list(text = "Deaths by County, Last 7 Days", x = 0),
         geo = list(scope = "usa")
       )
   })
