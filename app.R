@@ -770,7 +770,7 @@ server <- function(input, output, session) {
         marker = list(line = list(width = 0))
       ) %>%
       layout(
-        title = list(text = "County Cases - Last 7 Days", x = 0),
+        title = list(text = paste(input$state3d_select, "- County Cases - Last 7 Days"), x = 0),
         geo = list(scope = "usa", fitbounds = "locations")
       )
   })
@@ -795,7 +795,7 @@ server <- function(input, output, session) {
         marker = list(line = list(width = 0))
       ) %>%
       layout(
-        title = list(text = "County Deaths - Last 7 Days", x = 0),
+        title = list(text = paste(input$state3d_select, "- County Deaths - Last 7 Days"), x = 0),
         geo = list(scope = "usa", fitbounds = "locations")
       )
   })
