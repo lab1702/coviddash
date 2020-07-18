@@ -91,7 +91,8 @@ ui <- dashboardPage(
         menuSubItem(text = "Focused County Cases", tabName = "fcounty_cases_hotspots_tab"),
         menuSubItem(text = "Focused County Deaths", tabName = "fcounty_deaths_hotspots_tab"),
         menuSubItem(text = "All County Cases", tabName = "county_cases_hotspots_tab"),
-        menuSubItem(text = "All County Deaths", tabName = "county_deaths_hotspots_tab")
+        menuSubItem(text = "All County Deaths", tabName = "county_deaths_hotspots_tab"),
+        em("Please note: County maps load slow")
       )
     ),
     hr(),
