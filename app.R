@@ -71,8 +71,10 @@ ui <- dashboardPage(
         text = "Geographical Hotspots",
         menuSubItem(text = "State Positive Tests", tabName = "national_positive_hotspots_tab"),
         menuSubItem(text = "State Death", tabName = "national_death_hotspots_tab"),
-        menuSubItem(text = "County Cases", tabName = "county_cases_hotspots_tab"),
-        menuSubItem(text = "County Deaths", tabName = "county_deaths_hotspots_tab")
+        menuSubItem(text = "Focused County Cases", tabName = "fcounty_cases_hotspots_tab"),
+        menuSubItem(text = "Focused County Deaths", tabName = "fcounty_deaths_hotspots_tab"),
+        menuSubItem(text = "All County Cases", tabName = "county_cases_hotspots_tab"),
+        menuSubItem(text = "All County Deaths", tabName = "county_deaths_hotspots_tab")
       )
     ),
     hr(),
@@ -175,6 +177,14 @@ ui <- dashboardPage(
       tabItem(
         tabName = "national_death_hotspots_tab",
         box(plotlyOutput("national_death_hotspots_map", height = 800), width = 12)
+      ),
+      tabItem(
+        tabName = "fcounty_cases_hotspots_tab",
+        box(plotlyOutput("fcounty_cases_hotspots_map", height = 800), width = 12)
+      ),
+      tabItem(
+        tabName = "fcounty_deaths_hotspots_tab",
+        box(plotlyOutput("fcounty_deaths_hotspots_map", height = 800), width = 12)
       ),
       tabItem(
         tabName = "county_cases_hotspots_tab",
@@ -737,6 +747,56 @@ server <- function(input, output, session) {
       layout(
         title = list(text = "State Deaths - Last 7 Days", x = 0),
         geo = list(scope = "usa")
+      )
+  })
+
+  output$fcounty_cases_hotspots_map <- renderPlotly({
+    raw_county_data %>%
+      filter(
+        date >= Sys.Date() - 7,
+        state == input$state3d_select
+      ) %>%
+      group_by(state, county, fips) %>%
+      summarise(Cases = max(cases, na.rm = TRUE) - min(cases, na.rm = TRUE)) %>%
+      ungroup() %>%
+      plot_ly() %>%
+      add_trace(
+        type = "choropleth",
+        geojson = county_data,
+        locations = ~fips,
+        z = ~Cases,
+        text = ~ paste(county, state, sep = "<br />"),
+        color = ~Cases,
+        marker = list(line = list(width = 0))
+      ) %>%
+      layout(
+        title = list(text = "County Cases - Last 7 Days", x = 0),
+        geo = list(scope = "usa", fitbounds = "locations")
+      )
+  })
+
+  output$fcounty_deaths_hotspots_map <- renderPlotly({
+    raw_county_data %>%
+      filter(
+        date >= Sys.Date() - 7,
+        state == input$state3d_select
+      ) %>%
+      group_by(state, county, fips) %>%
+      summarise(Deaths = max(deaths, na.rm = TRUE) - min(deaths, na.rm = TRUE)) %>%
+      ungroup() %>%
+      plot_ly() %>%
+      add_trace(
+        type = "choropleth",
+        geojson = county_data,
+        locations = ~fips,
+        z = ~Deaths,
+        text = ~ paste(county, state, sep = "<br />"),
+        color = ~Deaths,
+        marker = list(line = list(width = 0))
+      ) %>%
+      layout(
+        title = list(text = "County Deaths - Last 7 Days", x = 0),
+        geo = list(scope = "usa", fitbounds = "locations")
       )
   })
 
