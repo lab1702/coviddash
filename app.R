@@ -853,12 +853,11 @@ server <- function(input, output, session) {
         locations = ~fips,
         z = ~Cases,
         text = ~ paste(county, state, sep = "<br />"),
-        color = ~Cases,
-        marker = list(line = list(width = 0))
+        color = ~Cases
       ) %>%
       layout(
         title = list(text = paste(input$state3d_select, "Cases by County, Last 7 Days"), x = 0),
-        geo = list(scope = "usa", fitbounds = "locations")
+        geo = list(scope = "usa", fitbounds = "locations", visible = FALSE)
       )
   })
 
@@ -878,12 +877,11 @@ server <- function(input, output, session) {
         locations = ~fips,
         z = ~Deaths,
         text = ~ paste(county, state, sep = "<br />"),
-        color = ~Deaths,
-        marker = list(line = list(width = 0))
+        color = ~Deaths
       ) %>%
       layout(
         title = list(text = paste(input$state3d_select, "Deaths by County, Last 7 Days"), x = 0),
-        geo = list(scope = "usa", fitbounds = "locations")
+        geo = list(scope = "usa", fitbounds = "locations", visible = FALSE)
       )
   })
 
@@ -900,12 +898,11 @@ server <- function(input, output, session) {
         locations = ~fips,
         z = ~Cases,
         text = ~ paste(county, state, sep = "<br />"),
-        color = ~Cases,
-        marker = list(line = list(width = 0))
+        color = ~Cases
       ) %>%
       layout(
         title = list(text = "Cases by County, Last 7 Days", x = 0),
-        geo = list(scope = "usa")
+        geo = list(scope = "usa", visible = FALSE)
       )
   })
 
@@ -922,12 +919,11 @@ server <- function(input, output, session) {
         locations = ~fips,
         z = ~Deaths,
         text = ~ paste(county, state, sep = "<br />"),
-        color = ~Deaths,
-        marker = list(line = list(width = 0))
+        color = ~Deaths
       ) %>%
       layout(
         title = list(text = "Deaths by County, Last 7 Days", x = 0),
-        geo = list(scope = "usa")
+        geo = list(scope = "usa", visible = FALSE)
       )
   })
 
