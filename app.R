@@ -48,10 +48,11 @@ ui <- dashboardPage(
       menuItem(
         text = "Daily Charts",
         menuSubItem(text = "National Combined", tabName = "us_overlay_tab"),
-        menuSubItem(text = "National % Positive Tests", tabName = "national_perc_tab"),
-        menuSubItem(text = "National Hospitalization", tabName = "national_hosp_tab"),
         menuSubItem(text = "State Combined", tabName = "states_overlay_tab"),
+        menuSubItem(text = "County Combined", tabName = "counties_overlay_tab"),
+        menuSubItem(text = "National % Positive Tests", tabName = "national_perc_tab"),
         menuSubItem(text = "State % Positive Tests", tabName = "state_perc_tab"),
+        menuSubItem(text = "National Hospitalization", tabName = "national_hosp_tab"),
         menuSubItem(text = "State Hospitalization", tabName = "state_hosp_tab")
       ),
       menuItem(
@@ -80,16 +81,21 @@ ui <- dashboardPage(
     hr(),
     selectInput(
       inputId = "statepicker",
-      label = "Focus State(s) in Charts:",
+      label = "Compare States:",
       choices = states_info$state,
       selected = "MI",
       multiple = TRUE
     ),
     selectInput(
       inputId = "state3d_select",
-      label = "Focus State in County Charts:",
+      label = "Focus State:",
       choices = sort(unique(raw_county_data$state)),
       selected = "Michigan"
+    ),
+    selectInput(
+      inputId = "county3d_select",
+      label = "Focus County:",
+      choices = "Select Focus State..."
     )
   ),
   body = dashboardBody(
@@ -161,6 +167,10 @@ ui <- dashboardPage(
         box(plotlyOutput("state_overlay_chart", height = 800), width = 12),
       ),
       tabItem(
+        tabName = "counties_overlay_tab",
+        box(plotlyOutput("county_overlay_chart", height = 800), width = 12),
+      ),
+      tabItem(
         tabName = "state_2d_tab",
         box(plotlyOutput("state_positive_heatmap", height = 800), status = "warning"),
         box(plotlyOutput("state_death_heatmap", height = 800), status = "danger")
@@ -215,6 +225,14 @@ ui <- dashboardPage(
 
 
 server <- function(input, output, session) {
+  observe({
+    updateSelectInput(
+      session = session,
+      inputId = "county3d_select",
+      choices = sort(unique(raw_county_data$county[raw_county_data$state %in% input$state3d_select]))
+    )
+  })
+
   output$us_perc_pos_chart <- renderPlotly({
     us_daily %>%
       filter(
@@ -430,6 +448,10 @@ server <- function(input, output, session) {
 
   output$us_overlay_chart <- renderPlotly({
     us_daily %>%
+      mutate(
+        positiveIncrease = ifelse(positiveIncrease < 0, NA, positiveIncrease),
+        deathIncrease = ifelse(deathIncrease < 0, NA, deathIncrease)
+      ) %>%
       plot_ly(
         x = ~date,
         y = ~deathIncrease,
@@ -470,6 +492,10 @@ server <- function(input, output, session) {
   output$state_overlay_chart <- renderPlotly({
     states_daily %>%
       filter(state %in% input$statepicker) %>%
+      mutate(
+        positiveIncrease = ifelse(positiveIncrease < 0, NA, positiveIncrease),
+        deathIncrease = ifelse(deathIncrease < 0, NA, deathIncrease)
+      ) %>%
       plot_ly(
         x = ~date,
         y = ~deathIncrease,
@@ -502,6 +528,59 @@ server <- function(input, output, session) {
         ),
         title = list(
           text = "State Deaths & Positive Tests",
+          x = 0
+        )
+      )
+  })
+
+  output$county_overlay_chart <- renderPlotly({
+    raw_county_data %>%
+      filter(
+        state == input$state3d_select,
+        county == input$county3d_select
+      ) %>%
+      mutate(
+        positiveIncrease = c(min(cases), diff(cases)),
+        deathIncrease = c(min(deaths), diff(deaths))
+      ) %>%
+      mutate(
+        positiveIncrease = ifelse(positiveIncrease < 0, NA, positiveIncrease),
+        deathIncrease = ifelse(deathIncrease < 0, NA, deathIncrease)
+      ) %>%
+      plot_ly(
+        x = ~date,
+        y = ~deathIncrease,
+        color = I("red"),
+        name = "Deaths",
+        type = "scatter",
+        mode = "lines",
+        legendgroup = "group1"
+      ) %>%
+      add_trace(
+        x = ~date,
+        y = ~positiveIncrease,
+        color = I("black"),
+        name = "Cases",
+        type = "scatter",
+        mode = "lines",
+        line = list(dash = "dot"),
+        yaxis = "y2",
+        legendgroup = "group2"
+      ) %>%
+      layout(
+        xaxis = list(
+          title = "Date"
+        ),
+        yaxis = list(
+          title = "Deaths"
+        ),
+        yaxis2 = list(
+          overlaying = "y",
+          side = "right",
+          title = "Cases"
+        ),
+        title = list(
+          text = paste(input$county3d_select, "-", input$state3d_select, "- County Deaths & Positive Tests"),
           x = 0
         )
       )
