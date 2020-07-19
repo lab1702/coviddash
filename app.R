@@ -9,14 +9,16 @@ library(plotly)
 library(rjson)
 
 
-state_name_to_code <- function(s) {
-  sapply(s, function(x) {
-    case_when(
-      tolower(x) == "district of columbia" ~ "DC",
-      TRUE ~ state.abb[tolower(state.name) == tolower(x)]
-    )
-  })
+single_state_name_to_code <- function(s) {
+  ifelse(
+    tolower(s) == "district of columbia",
+    "DC",
+    state.abb[tolower(state.name) == tolower(s)]
+  )
 }
+
+state_name_to_code <- Vectorize(single_state_name_to_code)
+
 
 us_current <- read_csv("https://covidtracking.com/api/v1/us/current.csv")
 
@@ -123,19 +125,19 @@ ui <- dashboardPage(
           title = "Data Quality, according to covidtracking.com"
         ),
         box(
-          HTML("National and State data is downloaded from <A HREF='https://covidtracking.com/api'>https://covidtracking.com/api</A>"),
+          HTML("National and State data is downloaded from <A HREF='https://covidtracking.com/api', TARGET='_blank'>https://covidtracking.com/api</A>"),
           title = "National and State Data Source"
         ),
         box(
-          HTML("County level data is downloaded from <A HREF='https://github.com/nytimes/covid-19-data'>https://github.com/nytimes/covid-19-data</A>"),
+          HTML("County level data is downloaded from <A HREF='https://github.com/nytimes/covid-19-data', TARGET='_blank'>https://github.com/nytimes/covid-19-data</A>"),
           title = "County Data Source"
         ),
         box(
-          HTML("The inspiration for the 3D charts came from the 'Dr. Frank Models' Facebook group which can be found at <A HREF='https://www.facebook.com/groups/158015618707622'>https://www.facebook.com/groups/158015618707622</A>"),
+          HTML("The inspiration for the 3D charts came from the <A HREF='https://www.facebook.com/groups/158015618707622', TARGET='_blank'>Dr. Frank Models</A> Facebook group."),
           title = "3D Charts"
         ),
         box(
-          HTML("The source code for this R/Shiny app is available at <A HREF='https://github.com/lab1702/coviddash'>https://github.com/lab1702/coviddash</A>"),
+          HTML("The source code for this R/Shiny app is available at <A HREF='https://github.com/lab1702/coviddash', TARGET='_blank'>https://github.com/lab1702/coviddash</A>"),
           title = "Source Code"
         )
       ),
