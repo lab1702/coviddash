@@ -27,7 +27,8 @@ states_info <- read_csv("https://covidtracking.com/api/v1/states/info.csv") %>%
   filter(state %in% c("DC", state.abb))
 
 states_current <- read_csv("https://covidtracking.com/api/v1/states/current.csv") %>%
-  filter(state %in% c("DC", state.abb))
+  filter(state %in% c("DC", state.abb)) %>%
+  mutate(date = ymd(date))
 
 states_daily <- read_csv("https://covidtracking.com/api/v1/states/daily.csv") %>%
   filter(state %in% c("DC", state.abb)) %>%
@@ -36,11 +37,11 @@ states_daily <- read_csv("https://covidtracking.com/api/v1/states/daily.csv") %>
 raw_county_data <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>%
   filter(
     state %in% c(state.name, "District of Columbia"),
-    !is.na(fips),
-    county != "Unknown"
+    county != "Unknown",
+    !is.na(fips)
   )
 
-county_data <- fromJSON(file = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json")
+county_data <- fromJSON(file = "geojson-counties-fips.json")
 
 states_grade <- states_current %>%
   transmute(
@@ -61,6 +62,7 @@ ui <- dashboardPage(
     sidebarMenu(
       menuItem(text = "About", tabName = "about_tab"),
       menuItem(text = "Summary Tables", tabName = "data_tables_tab"),
+      menuItem(text = "Summary Charts", tabName = "overall_summary_tab"),
       menuItem(
         text = "Daily Charts",
         menuSubItem(text = "National Combined", tabName = "us_overlay_tab"),
@@ -136,6 +138,16 @@ ui <- dashboardPage(
           HTML("The source code for this R/Shiny app is available at <A HREF='https://github.com/lab1702/coviddash'>https://github.com/lab1702/coviddash</A>"),
           title = "Source Code"
         )
+      ),
+      tabItem(
+        tabName = "data_tables_tab",
+        box(tableOutput("data_us"), title = "National Data Table"),
+        box(tableOutput("data_states"), title = "State Data Table")
+      ),
+      tabItem(
+        tabName = "overall_summary_tab",
+        box(plotlyOutput("overall_state_chart", height = 800)),
+        box(plotlyOutput("overall_county_chart", height = 800))
       ),
       tabItem(
         tabName = "national_perc_tab",
@@ -223,11 +235,6 @@ ui <- dashboardPage(
         tabName = "county_3d_tab",
         box(plotlyOutput("county_3d_chart1", height = 800), status = "warning"),
         box(plotlyOutput("county_3d_chart2", height = 800), status = "danger")
-      ),
-      tabItem(
-        tabName = "data_tables_tab",
-        box(tableOutput("data_us"), title = "National Data Table", width = 12),
-        box(tableOutput("data_states"), title = "State Data Table", width = 12)
       )
     )
   )
@@ -241,6 +248,42 @@ server <- function(input, output, session) {
       inputId = "county3d_select",
       choices = sort(unique(raw_county_data$county[raw_county_data$state %in% input$state3d_select]))
     )
+  })
+
+  output$overall_state_chart <- renderPlotly({
+    states_current %>%
+      plot_ly(
+        type = "pie",
+        labels = ~state,
+        values = ~death,
+        pull = ~ ifelse(state == state_name_to_code(input$state3d_select), 0.1, 0),
+        textinfo = "label+value+percent",
+        textposition = "inside",
+        showlegend = FALSE
+      ) %>%
+      layout(
+        title = list(text = "Deaths by State", x = 0)
+      )
+  })
+
+  output$overall_county_chart <- renderPlotly({
+    raw_county_data %>%
+      filter(state %in% input$state3d_select) %>%
+      group_by(county) %>%
+      arrange(desc(date)) %>%
+      slice(1) %>%
+      ungroup() %>%
+      plot_ly(
+        type = "pie",
+        labels = ~county,
+        values = ~deaths,
+        textinfo = "label+value+percent",
+        textposition = "inside",
+        showlegend = FALSE
+      ) %>%
+      layout(
+        title = list(text = paste(input$state3d_select, "Deaths by County"), x = 0)
+      )
   })
 
   output$us_perc_pos_chart <- renderPlotly({
