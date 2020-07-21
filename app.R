@@ -70,13 +70,9 @@ ui <- dashboardPage(
       menuItem(text = "Summary Charts", tabName = "overall_summary_tab"),
       menuItem(
         text = "Daily Charts",
-        menuSubItem(text = "National Combined", tabName = "us_overlay_tab"),
-        menuSubItem(text = "State Combined", tabName = "states_overlay_tab"),
-        menuSubItem(text = "County Combined", tabName = "counties_overlay_tab"),
-        menuSubItem(text = "National % Positive Tests", tabName = "national_perc_tab"),
-        menuSubItem(text = "State % Positive Tests", tabName = "state_perc_tab"),
-        menuSubItem(text = "National Hospitalization", tabName = "national_hosp_tab"),
-        menuSubItem(text = "State Hospitalization", tabName = "state_hosp_tab")
+        menuSubItem(text = "National", tabName = "us_overlay_tab"),
+        menuSubItem(text = "Focused State", tabName = "states_overlay_tab"),
+        menuSubItem(text = "Focused County", tabName = "counties_overlay_tab")
       ),
       menuItem(
         text = "Cumulative Charts",
@@ -93,12 +89,12 @@ ui <- dashboardPage(
       ),
       menuItem(
         text = "Geographical Hotspots",
-        menuSubItem(text = "State Positive Tests", tabName = "national_positive_hotspots_tab"),
-        menuSubItem(text = "State Death", tabName = "national_death_hotspots_tab"),
-        menuSubItem(text = "Focused County Cases", tabName = "fcounty_cases_hotspots_tab"),
-        menuSubItem(text = "Focused County Deaths", tabName = "fcounty_deaths_hotspots_tab"),
-        menuSubItem(text = "All County Cases", tabName = "county_cases_hotspots_tab"),
-        menuSubItem(text = "All County Deaths", tabName = "county_deaths_hotspots_tab"),
+        menuSubItem(text = "States Positive Tests", tabName = "national_positive_hotspots_tab"),
+        menuSubItem(text = "States Deaths", tabName = "national_death_hotspots_tab"),
+        menuSubItem(text = "Counties Cases", tabName = "fcounty_cases_hotspots_tab"),
+        menuSubItem(text = "Counties Deaths", tabName = "fcounty_deaths_hotspots_tab"),
+        menuSubItem(text = "All Counties Cases", tabName = "county_cases_hotspots_tab"),
+        menuSubItem(text = "All Counties Deaths", tabName = "county_deaths_hotspots_tab"),
         em("Please note: County maps load slow")
       )
     ),
@@ -157,22 +153,6 @@ ui <- dashboardPage(
         tabName = "overall_summary_tab",
         box(plotlyOutput("overall_state_chart", height = 800)),
         box(plotlyOutput("overall_county_chart", height = 800))
-      ),
-      tabItem(
-        tabName = "national_perc_tab",
-        box(plotlyOutput("us_perc_pos_chart", height = 800), width = 12)
-      ),
-      tabItem(
-        tabName = "state_perc_tab",
-        box(plotlyOutput("state_perc_pos_chart", height = 800), width = 12)
-      ),
-      tabItem(
-        tabName = "national_hosp_tab",
-        box(plotlyOutput("national_hosp_chart", height = 800), width = 12)
-      ),
-      tabItem(
-        tabName = "state_hosp_tab",
-        box(plotlyOutput("state_hosp_chart", height = 800), width = 12)
       ),
       tabItem(
         tabName = "national_charts_tab",
@@ -292,89 +272,6 @@ server <- function(input, output, session) {
       ) %>%
       layout(
         title = list(text = paste(input$state3d_select, "Deaths by County"), x = 0)
-      )
-  })
-
-  output$us_perc_pos_chart <- renderPlotly({
-    us_daily %>%
-      filter(
-        totalTestResultsIncrease > 10000,
-        date >= Sys.Date() - 90
-      ) %>%
-      mutate(
-        value = positiveIncrease / totalTestResultsIncrease
-      ) %>%
-      plot_ly(
-        x = ~date,
-        y = ~value,
-        type = "scatter",
-        mode = "lines"
-      ) %>%
-      layout(
-        xaxis = list(title = "Date"),
-        yaxis = list(title = "% Positive Tests", tickformat = "%"),
-        title = list(text = "National % Positive Tests", x = 0)
-      )
-  })
-
-  output$state_perc_pos_chart <- renderPlotly({
-    states_daily %>%
-      filter(
-        state %in% state_name_to_code(input$state3d_select),
-        totalTestResultsIncrease > 1000,
-        date >= Sys.Date() - 90
-      ) %>%
-      mutate(
-        value = positiveIncrease / totalTestResultsIncrease
-      ) %>%
-      plot_ly(
-        x = ~date,
-        y = ~value,
-        type = "scatter",
-        mode = "lines"
-      ) %>%
-      layout(
-        xaxis = list(title = "Date"),
-        yaxis = list(title = "% Positive Tests", tickformat = "%"),
-        title = list(text = paste(input$state3d_select, "% Positive Tests"), x = 0)
-      )
-  })
-
-  output$national_hosp_chart <- renderPlotly({
-    us_daily %>%
-      transmute(
-        Date = date,
-        Hospitalized = hospitalizedCurrently
-      ) %>%
-      arrange(Date) %>%
-      plot_ly(
-        x = ~Date,
-        y = ~Hospitalized,
-        type = "scatter",
-        mode = "lines"
-      ) %>%
-      layout(
-        title = list(text = "National Hospitalized", x = 0)
-      )
-  })
-
-  output$state_hosp_chart <- renderPlotly({
-    states_daily %>%
-      filter(state %in% state_name_to_code(input$state3d_select)) %>%
-      transmute(
-        State = state,
-        Date = date,
-        Hospitalized = hospitalizedCurrently
-      ) %>%
-      arrange(State, Date) %>%
-      plot_ly(
-        x = ~Date,
-        y = ~Hospitalized,
-        type = "scatter",
-        mode = "lines"
-      ) %>%
-      layout(
-        title = list(text = paste(input$state3d_select, "Hospitalized"), x = 0)
       )
   })
 
@@ -508,42 +405,53 @@ server <- function(input, output, session) {
 
   output$us_overlay_chart <- renderPlotly({
     us_daily %>%
-      mutate(
-        positiveIncrease = ifelse(positiveIncrease < 0, NA, positiveIncrease),
-        deathIncrease = ifelse(deathIncrease < 0, NA, deathIncrease)
-      ) %>%
+      filter(date >= "2020-03-01") %>%
       plot_ly(
         x = ~date,
         y = ~deathIncrease,
-        color = I("red"),
+        color = I("darkred"),
         name = "Deaths",
-        type = "scatter",
-        mode = "lines"
+        type = "bar"
+      ) %>%
+      add_trace(
+        x = ~date,
+        y = ~hospitalizedCurrently,
+        color = I("darkblue"),
+        name = "Hospitalized",
+        type = "bar",
+        yaxis = "y2"
       ) %>%
       add_trace(
         x = ~date,
         y = ~positiveIncrease,
-        color = I("black"),
+        color = I("dimgray"),
         name = "Positive Tests",
-        type = "scatter",
-        mode = "lines",
-        line = list(dash = "dot"),
-        yaxis = "y2"
+        type = "bar",
+        yaxis = "y3"
+      ) %>%
+      subplot(
+        nrows = 3,
+        shareX = TRUE
       ) %>%
       layout(
+        hovermode = "x",
         xaxis = list(
           title = "Date"
         ),
         yaxis = list(
-          title = "Deaths"
+          title = "Deaths",
+          fixedrange = TRUE
         ),
         yaxis2 = list(
-          overlaying = "y",
-          side = "right",
-          title = "Positive Tests"
+          title = "Hospitalized",
+          fixedrange = TRUE
+        ),
+        yaxis3 = list(
+          title = "Positive Tests",
+          fixedrange = TRUE
         ),
         title = list(
-          text = "National Deaths & Positive Tests",
+          text = "National Daily Numbers",
           x = 0
         )
       )
@@ -551,43 +459,56 @@ server <- function(input, output, session) {
 
   output$state_overlay_chart <- renderPlotly({
     states_daily %>%
-      filter(state == state_name_to_code(input$state3d_select)) %>%
-      mutate(
-        positiveIncrease = ifelse(positiveIncrease < 0, NA, positiveIncrease),
-        deathIncrease = ifelse(deathIncrease < 0, NA, deathIncrease)
+      filter(
+        state == state_name_to_code(input$state3d_select),
+        date >= "2020-03-01"
       ) %>%
       plot_ly(
         x = ~date,
         y = ~deathIncrease,
-        color = I("red"),
+        color = I("darkred"),
         name = "Deaths",
-        type = "scatter",
-        mode = "lines"
+        type = "bar"
+      ) %>%
+      add_trace(
+        x = ~date,
+        y = ~hospitalizedCurrently,
+        color = I("darkblue"),
+        name = "Hospitalized",
+        type = "bar",
+        yaxis = "y2"
       ) %>%
       add_trace(
         x = ~date,
         y = ~positiveIncrease,
-        color = I("black"),
+        color = I("dimgray"),
         name = "Positive Tests",
-        type = "scatter",
-        mode = "lines",
-        line = list(dash = "dot"),
-        yaxis = "y2"
+        type = "bar",
+        yaxis = "y3"
+      ) %>%
+      subplot(
+        nrows = 3,
+        shareX = TRUE
       ) %>%
       layout(
+        hovermode = "x",
         xaxis = list(
           title = "Date"
         ),
         yaxis = list(
-          title = "Deaths"
+          title = "Deaths",
+          fixedrange = TRUE
         ),
         yaxis2 = list(
-          overlaying = "y",
-          side = "right",
-          title = "Positive Tests"
+          title = "Hospitalized",
+          fixedrange = TRUE
+        ),
+        yaxis3 = list(
+          title = "Positive Tests",
+          fixedrange = TRUE
         ),
         title = list(
-          text = paste(input$state3d_select, "Deaths & Positive Tests"),
+          text = paste(input$state3d_select, "Daily Numbers"),
           x = 0
         )
       )
@@ -597,50 +518,47 @@ server <- function(input, output, session) {
     raw_county_data %>%
       filter(
         state %in% input$state3d_select,
-        county %in% input$county3d_select
+        county %in% input$county3d_select,
+        date >= "2020-03-01"
       ) %>%
       mutate(
         positiveIncrease = c(min(cases), diff(cases)),
         deathIncrease = c(min(deaths), diff(deaths))
       ) %>%
-      mutate(
-        positiveIncrease = ifelse(positiveIncrease < 0, NA, positiveIncrease),
-        deathIncrease = ifelse(deathIncrease < 0, NA, deathIncrease)
-      ) %>%
       plot_ly(
         x = ~date,
         y = ~deathIncrease,
-        color = I("red"),
+        color = I("darkred"),
         name = "Deaths",
-        type = "scatter",
-        mode = "lines",
-        legendgroup = "group1"
+        type = "bar"
       ) %>%
       add_trace(
         x = ~date,
         y = ~positiveIncrease,
-        color = I("black"),
+        color = I("dimgray"),
         name = "Cases",
-        type = "scatter",
-        mode = "lines",
-        line = list(dash = "dot"),
-        yaxis = "y2",
-        legendgroup = "group2"
+        type = "bar",
+        yaxis = "y2"
+      ) %>%
+      subplot(
+        nrows = 2,
+        shareX = TRUE
       ) %>%
       layout(
+        hovermode = "x",
         xaxis = list(
           title = "Date"
         ),
         yaxis = list(
-          title = "Deaths"
+          title = "Deaths",
+          fixedrange = TRUE
         ),
         yaxis2 = list(
-          overlaying = "y",
-          side = "right",
-          title = "Cases"
+          title = "Cases",
+          fixedrange = TRUE
         ),
         title = list(
-          text = paste0(input$county3d_select, ", ", input$state3d_select, " Deaths & Cases"),
+          text = paste(input$county3d_select, "County,", input$state3d_select, "Daily Numbers"),
           x = 0
         )
       )
@@ -664,7 +582,7 @@ server <- function(input, output, session) {
         type = "heatmap"
       ) %>%
       layout(
-        yaxis = list(autorange = "reversed"),
+        yaxis = list(autorange = "reversed", fixedrange = TRUE),
         title = list(text = "Positive Tests by State, Rolling 7 Day Average", x = 0)
       )
   })
@@ -688,7 +606,7 @@ server <- function(input, output, session) {
         type = "heatmap"
       ) %>%
       layout(
-        yaxis = list(autorange = "reversed"),
+        yaxis = list(autorange = "reversed", fixedrange = TRUE),
         title = list(text = "Deaths by State, Rolling 7 Day Average", x = 0)
       )
   })
@@ -714,7 +632,7 @@ server <- function(input, output, session) {
         type = "heatmap"
       ) %>%
       layout(
-        yaxis = list(autorange = "reversed"),
+        yaxis = list(autorange = "reversed", fixedrange = TRUE),
         title = list(text = paste(input$state3d_select, "Cases by County, Rolling 7 Day Average"), x = 0)
       )
   })
@@ -740,7 +658,7 @@ server <- function(input, output, session) {
         type = "heatmap"
       ) %>%
       layout(
-        yaxis = list(autorange = "reversed"),
+        yaxis = list(autorange = "reversed", fixedrange = TRUE),
         title = list(text = paste(input$state3d_select, "Deaths by County, Rolling 7 Day Average"), x = 0)
       )
   })
