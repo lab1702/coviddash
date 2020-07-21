@@ -20,7 +20,10 @@ single_state_name_to_code <- function(s) {
 state_name_to_code <- Vectorize(single_state_name_to_code)
 
 
-us_current <- read_csv("https://covidtracking.com/api/v1/us/current.csv")
+api_info <- read_csv("https://covidtracking.com/api/v1/status.csv")
+
+us_current <- read_csv("https://covidtracking.com/api/v1/us/current.csv") %>%
+  mutate(date = ymd(date))
 
 us_daily <- read_csv("https://covidtracking.com/api/v1/us/daily.csv") %>%
   mutate(date = ymd(date))
@@ -119,6 +122,10 @@ ui <- dashboardPage(
         box(
           tableOutput("data_summary_table"),
           title = "Most Recent Data By Type"
+        ),
+        box(
+          tableOutput("api_info_table"),
+          title = "covidtracking.com API Status"
         ),
         box(
           tableOutput("data_quality_table"),
@@ -976,6 +983,15 @@ server <- function(input, output, session) {
     data_summary
   })
 
+  output$api_info_table <- renderTable({
+    api_info %>%
+      transmute(
+        `Build Time` = as.character(buildTime),
+        Production = production,
+        `Run Number` = as.integer(runNumber)
+      )
+  })
+
   output$data_quality_table <- renderTable({
     states_grade %>%
       group_by(Grade) %>%
@@ -987,11 +1003,12 @@ server <- function(input, output, session) {
   output$data_us <- renderTable({
     us_current %>%
       transmute(
-        Tests = scales::comma(totalTestResults),
-        Positive = scales::comma(positive),
-        Deaths = scales::comma(death),
-        Recovered = scales::comma(recovered),
-        Modified = as.character(lastModified)
+        Tests = scales::comma(totalTestResults, accuracy = 1),
+        Positive = scales::comma(positive, accuracy = 1),
+        Deaths = scales::comma(death, accuracy = 1),
+        Recovered = scales::comma(recovered, accuracy = 1),
+        lastModified = as.character(lastModified),
+        Collected = format(date, "%A, %B %d, %Y")
       )
   })
 
@@ -999,12 +1016,12 @@ server <- function(input, output, session) {
     states_current %>%
       transmute(
         State = state,
-        Tests = scales::comma(totalTestResults),
-        Positive = scales::comma(positive),
-        Deaths = scales::comma(death),
-        Recovered = scales::comma(recovered),
-        Updated = lastUpdateEt,
-        Checked = checkTimeEt,
+        Tests = scales::comma(totalTestResults, accuracy = 1),
+        Positive = scales::comma(positive, accuracy = 1),
+        Deaths = scales::comma(death, accuracy = 1),
+        Recovered = scales::comma(recovered, accuracy = 1),
+        lastUpdateEt = as.character(lastUpdateEt),
+        Collected = format(date, "%A, %B %d, %Y"),
         Quality = dataQualityGrade
       ) %>%
       arrange(State)
