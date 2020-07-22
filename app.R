@@ -277,14 +277,9 @@ server <- function(input, output, session) {
 
   output$national_cases_chart <- renderPlotly({
     us_daily %>%
-      transmute(
-        Date = date,
-        Cases = positive
-      ) %>%
-      arrange(Date) %>%
       plot_ly(
-        x = ~Date,
-        y = ~Cases,
+        x = ~date,
+        y = ~positive,
         type = "scatter",
         mode = "lines"
       ) %>%
@@ -295,14 +290,9 @@ server <- function(input, output, session) {
 
   output$national_deaths_chart <- renderPlotly({
     us_daily %>%
-      transmute(
-        Date = date,
-        Deaths = death
-      ) %>%
-      arrange(Date) %>%
       plot_ly(
-        x = ~Date,
-        y = ~Deaths,
+        x = ~date,
+        y = ~death,
         type = "scatter",
         mode = "lines"
       ) %>%
@@ -313,16 +303,10 @@ server <- function(input, output, session) {
 
   output$states_cases_chart <- renderPlotly({
     states_daily %>%
-      transmute(
-        State = state,
-        Date = date,
-        Cases = positive
-      ) %>%
-      arrange(State, Date) %>%
       plot_ly(
-        x = ~Date,
-        y = ~Cases,
-        color = ~State,
+        x = ~date,
+        y = ~positive,
+        color = ~state,
         type = "scatter",
         mode = "lines"
       ) %>%
@@ -333,16 +317,10 @@ server <- function(input, output, session) {
 
   output$states_deaths_chart <- renderPlotly({
     states_daily %>%
-      transmute(
-        State = state,
-        Date = date,
-        Deaths = death
-      ) %>%
-      arrange(State, Date) %>%
       plot_ly(
-        x = ~Date,
-        y = ~Deaths,
-        color = ~State,
+        x = ~date,
+        y = ~death,
+        color = ~state,
         type = "scatter",
         mode = "lines"
       ) %>%
@@ -356,19 +334,19 @@ server <- function(input, output, session) {
       filter(
         state == input$state3d_select
       ) %>%
-      group_by(county) %>%
-      arrange(date) %>%
-      transmute(
-        County = county,
-        Date = date,
-        Cases = cases
-      ) %>%
-      ungroup() %>%
-      arrange(County, Date) %>%
+      # group_by(county) %>%
+      # arrange(date) %>%
+      # transmute(
+      #   County = county,
+      #   Date = date,
+      #   Cases = cases
+      # ) %>%
+      # ungroup() %>%
+      # arrange(County, Date) %>%
       plot_ly(
-        x = ~Date,
-        y = ~Cases,
-        color = ~County,
+        x = ~date,
+        y = ~cases,
+        color = ~county,
         type = "scatter",
         mode = "lines"
       ) %>%
@@ -382,19 +360,10 @@ server <- function(input, output, session) {
       filter(
         state == input$state3d_select
       ) %>%
-      group_by(county) %>%
-      arrange(date) %>%
-      transmute(
-        County = county,
-        Date = date,
-        Deaths = deaths
-      ) %>%
-      ungroup() %>%
-      arrange(County, Date) %>%
       plot_ly(
-        x = ~Date,
-        y = ~Deaths,
-        color = ~County,
+        x = ~date,
+        y = ~deaths,
+        color = ~county,
         type = "scatter",
         mode = "lines"
       ) %>%
@@ -425,12 +394,21 @@ server <- function(input, output, session) {
         x = ~date,
         y = ~positiveIncrease,
         color = I("dimgray"),
-        name = "Positive Tests",
+        name = "Positive",
         type = "bar",
         yaxis = "y3"
       ) %>%
+      add_trace(
+        x = ~date,
+        y = ~ positiveIncrease / totalTestResultsIncrease,
+        color = I("black"),
+        name = "% Positive",
+        type = "scatter",
+        mode = "lines",
+        yaxis = "y4"
+      ) %>%
       subplot(
-        nrows = 3,
+        nrows = 4,
         shareX = TRUE
       ) %>%
       layout(
@@ -447,8 +425,13 @@ server <- function(input, output, session) {
           fixedrange = TRUE
         ),
         yaxis3 = list(
-          title = "Positive Tests",
+          title = "Positive",
           fixedrange = TRUE
+        ),
+        yaxis4 = list(
+          title = "% Positive",
+          fixedrange = TRUE,
+          tickformat = "%"
         ),
         title = list(
           text = "National Daily Numbers",
@@ -482,12 +465,21 @@ server <- function(input, output, session) {
         x = ~date,
         y = ~positiveIncrease,
         color = I("dimgray"),
-        name = "Positive Tests",
+        name = "Positive",
         type = "bar",
         yaxis = "y3"
       ) %>%
+      add_trace(
+        x = ~date,
+        y = ~ positiveIncrease / totalTestResultsIncrease,
+        color = I("black"),
+        name = "% Positive",
+        type = "scatter",
+        mode = "lines",
+        yaxis = "y4"
+      ) %>%
       subplot(
-        nrows = 3,
+        nrows = 4,
         shareX = TRUE
       ) %>%
       layout(
@@ -504,8 +496,13 @@ server <- function(input, output, session) {
           fixedrange = TRUE
         ),
         yaxis3 = list(
-          title = "Positive Tests",
+          title = "Positive",
           fixedrange = TRUE
+        ),
+        yaxis4 = list(
+          title = "% Positive",
+          fixedrange = TRUE,
+          tickformat = "%"
         ),
         title = list(
           text = paste(input$state3d_select, "Daily Numbers"),
@@ -571,14 +568,14 @@ server <- function(input, output, session) {
       transmute(
         Date = date,
         State = state,
-        Positives = rollmean(x = positiveIncrease, k = 7, fill = NA)
+        Positive = rollmean(x = positiveIncrease, k = 7, fill = NA)
       ) %>%
       ungroup() %>%
       arrange(State, Date) %>%
       plot_ly(
         x = ~Date,
         y = ~State,
-        z = ~Positives,
+        z = ~Positive,
         type = "heatmap"
       ) %>%
       layout(
@@ -671,15 +668,15 @@ server <- function(input, output, session) {
       transmute(
         State = state,
         Date = date,
-        Positives = rollmean(x = positiveIncrease, k = 7, fill = NA)
+        Positive = rollmean(x = positiveIncrease, k = 7, fill = NA)
       ) %>%
       ungroup() %>%
       arrange(State, Date) %>%
       plot_ly(
         x = ~State,
         y = ~Date,
-        z = ~Positives,
-        intensity = ~Positives,
+        z = ~Positive,
+        intensity = ~Positive,
         colors = "Paired",
         type = "mesh3d"
       ) %>%
@@ -771,18 +768,18 @@ server <- function(input, output, session) {
     states_daily %>%
       filter(date >= Sys.Date() - 7) %>%
       group_by(state) %>%
-      summarise(Positives = sum(positiveIncrease, na.rm = TRUE)) %>%
+      summarise(Positive = mean(positiveIncrease, na.rm = TRUE)) %>%
       ungroup() %>%
       plot_geo(
         locationmode = "USA-states"
       ) %>%
       add_trace(
-        z = ~Positives,
+        z = ~Positive,
         locations = ~state,
-        color = ~Positives
+        color = ~Positive
       ) %>%
       layout(
-        title = list(text = "Positive Tests by State, Last 7 Days", x = 0),
+        title = list(text = "Average Daily Positive Tests by State, Last 7 Days", x = 0),
         geo = list(scope = "usa")
       )
   })
@@ -791,7 +788,7 @@ server <- function(input, output, session) {
     states_daily %>%
       filter(date >= Sys.Date() - 7) %>%
       group_by(state) %>%
-      summarise(Deaths = sum(deathIncrease, na.rm = TRUE)) %>%
+      summarise(Deaths = mean(deathIncrease, na.rm = TRUE)) %>%
       ungroup() %>%
       plot_geo(
         locationmode = "USA-states"
@@ -802,7 +799,7 @@ server <- function(input, output, session) {
         color = ~Deaths
       ) %>%
       layout(
-        title = list(text = "Deaths by State, Last 7 Days", x = 0),
+        title = list(text = "Average Daily Deaths by State, Last 7 Days", x = 0),
         geo = list(scope = "usa")
       )
   })
@@ -814,7 +811,7 @@ server <- function(input, output, session) {
         state == input$state3d_select
       ) %>%
       group_by(state, county, fips) %>%
-      summarise(Cases = max(cases, na.rm = TRUE) - min(cases, na.rm = TRUE)) %>%
+      summarise(Cases = mean(diff(cases), na.rm = TRUE)) %>%
       ungroup() %>%
       plot_ly() %>%
       add_trace(
@@ -826,7 +823,7 @@ server <- function(input, output, session) {
         color = ~Cases
       ) %>%
       layout(
-        title = list(text = paste(input$state3d_select, "Cases by County, Last 7 Days"), x = 0),
+        title = list(text = paste(input$state3d_select, "Average Daily Cases by County, Last 7 Days"), x = 0),
         geo = list(scope = "usa", fitbounds = "locations", visible = FALSE)
       )
   })
@@ -838,7 +835,7 @@ server <- function(input, output, session) {
         state == input$state3d_select
       ) %>%
       group_by(state, county, fips) %>%
-      summarise(Deaths = max(deaths, na.rm = TRUE) - min(deaths, na.rm = TRUE)) %>%
+      summarise(Deaths = mean(diff(deaths), na.rm = TRUE)) %>%
       ungroup() %>%
       plot_ly() %>%
       add_trace(
@@ -850,7 +847,7 @@ server <- function(input, output, session) {
         color = ~Deaths
       ) %>%
       layout(
-        title = list(text = paste(input$state3d_select, "Deaths by County, Last 7 Days"), x = 0),
+        title = list(text = paste(input$state3d_select, "Average Daily Deaths by County, Last 7 Days"), x = 0),
         geo = list(scope = "usa", fitbounds = "locations", visible = FALSE)
       )
   })
@@ -859,7 +856,7 @@ server <- function(input, output, session) {
     raw_county_data %>%
       filter(date >= Sys.Date() - 7) %>%
       group_by(state, county, fips) %>%
-      summarise(Cases = max(cases, na.rm = TRUE) - min(cases, na.rm = TRUE)) %>%
+      summarise(Cases = mean(diff(cases), na.rm = TRUE)) %>%
       ungroup() %>%
       plot_ly() %>%
       add_trace(
@@ -871,7 +868,7 @@ server <- function(input, output, session) {
         color = ~Cases
       ) %>%
       layout(
-        title = list(text = "Cases by County, Last 7 Days", x = 0),
+        title = list(text = "Average Daily Cases by County, Last 7 Days", x = 0),
         geo = list(scope = "usa", visible = FALSE)
       )
   })
@@ -880,7 +877,7 @@ server <- function(input, output, session) {
     raw_county_data %>%
       filter(date >= Sys.Date() - 7) %>%
       group_by(state, county, fips) %>%
-      summarise(Deaths = max(deaths, na.rm = TRUE) - min(deaths, na.rm = TRUE)) %>%
+      summarise(Deaths = mean(diff(deaths), na.rm = TRUE)) %>%
       ungroup() %>%
       plot_ly() %>%
       add_trace(
@@ -892,7 +889,7 @@ server <- function(input, output, session) {
         color = ~Deaths
       ) %>%
       layout(
-        title = list(text = "Deaths by County, Last 7 Days", x = 0),
+        title = list(text = "Average Daily Deaths by County, Last 7 Days", x = 0),
         geo = list(scope = "usa", visible = FALSE)
       )
   })
