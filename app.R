@@ -60,8 +60,26 @@ data_summary <- tibble(
   County = format(max(raw_county_data$date), "%A, %B %d, %Y")
 )
 
+top10_states <- states_current %>%
+  arrange(desc(death)) %>%
+  head(10) %>%
+  pull(state)
+
+top10_counties <- function(x) {
+  raw_county_data %>%
+    filter(state == x) %>%
+    group_by(county) %>%
+    arrange(desc(date)) %>%
+    slice(1) %>%
+    ungroup() %>%
+    arrange(desc(deaths)) %>%
+    head(10) %>%
+    pull(county)
+}
+
 
 ui <- dashboardPage(
+  tags$head(includeHTML(("google-analytics.html"))),
   header = dashboardHeader(title = "COVID-19"),
   sidebar = dashboardSidebar(
     sidebarMenu(
@@ -109,6 +127,11 @@ ui <- dashboardPage(
       inputId = "county3d_select",
       label = "Focus County:",
       choices = "Select Focus State..."
+    ),
+    checkboxInput(
+      inputId = "top10",
+      label = "Top 10 Cumulative Charts",
+      value = TRUE
     )
   ),
   body = dashboardBody(
@@ -303,6 +326,7 @@ server <- function(input, output, session) {
 
   output$states_cases_chart <- renderPlotly({
     states_daily %>%
+      filter(!input$top10 | (input$top10 & state %in% top10_states)) %>%
       plot_ly(
         x = ~date,
         y = ~positive,
@@ -311,12 +335,13 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
-        title = list(text = "State Positive Tests", x = 0)
+        title = list(text = paste("State Positive Tests", ifelse(input$top10, "[Top 10]", "[All]")), x = 0)
       )
   })
 
   output$states_deaths_chart <- renderPlotly({
     states_daily %>%
+      filter(!input$top10 | (input$top10 & state %in% top10_states)) %>%
       plot_ly(
         x = ~date,
         y = ~death,
@@ -325,14 +350,15 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
-        title = list(text = "State Deaths", x = 0)
+        title = list(text = paste("State Deaths", ifelse(input$top10, "[Top 10]", "[All]")), x = 0)
       )
   })
 
   output$county_cases_chart <- renderPlotly({
     raw_county_data %>%
       filter(
-        state == input$state3d_select
+        state == input$state3d_select,
+        !input$top10 | (input$top10 & county %in% top10_counties(input$state3d_select))
       ) %>%
       plot_ly(
         x = ~date,
@@ -342,14 +368,15 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
-        title = list(text = paste(input$state3d_select, "Cases by County"), x = 0)
+        title = list(text = paste(input$state3d_select, "Cases by County", ifelse(input$top10, "[Top 10]", "[All]")), x = 0)
       )
   })
 
   output$county_deaths_chart <- renderPlotly({
     raw_county_data %>%
       filter(
-        state == input$state3d_select
+        state == input$state3d_select,
+        !input$top10 | (input$top10 & county %in% top10_counties(input$state3d_select))
       ) %>%
       plot_ly(
         x = ~date,
@@ -359,7 +386,7 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
-        title = list(text = paste(input$state3d_select, "Deaths by County"), x = 0)
+        title = list(text = paste(input$state3d_select, "Deaths by County", ifelse(input$top10, "[Top 10]", "[All]")), x = 0)
       )
   })
 
