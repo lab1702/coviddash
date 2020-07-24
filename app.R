@@ -334,15 +334,6 @@ server <- function(input, output, session) {
       filter(
         state == input$state3d_select
       ) %>%
-      # group_by(county) %>%
-      # arrange(date) %>%
-      # transmute(
-      #   County = county,
-      #   Date = date,
-      #   Cases = cases
-      # ) %>%
-      # ungroup() %>%
-      # arrange(County, Date) %>%
       plot_ly(
         x = ~date,
         y = ~cases,
