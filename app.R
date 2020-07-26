@@ -163,6 +163,10 @@ ui <- dashboardPage(
           title = "3D Charts"
         ),
         box(
+          HTML("A simplified dashboard for mobile devices is available at: <A HREF='https://lab1702.shinyapps.io/covidmobile/' TARGET='_blank'>https://lab1702.shinyapps.io/covidmobile/</A>"),
+          title = "Mobile Version"
+        ),
+        box(
           HTML("The source code for this R/Shiny app is available at <A HREF='https://github.com/lab1702/coviddash', TARGET='_blank'>https://github.com/lab1702/coviddash</A>"),
           title = "Source Code"
         )
