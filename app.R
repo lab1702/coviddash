@@ -400,14 +400,23 @@ server <- function(input, output, session) {
       plot_ly(
         x = ~date,
         y = ~deathIncrease,
-        color = I("darkred"),
+        color = I("red"),
         name = "Deaths",
         type = "bar"
       ) %>%
       add_trace(
         x = ~date,
+        y = ~ rollmean(x = deathIncrease, k = 7, fill = NA),
+        color = I("darkred"),
+        name = "7-Day Deaths",
+        type = "scatter",
+        mode = "lines",
+        yaxis = "y1"
+      ) %>%
+      add_trace(
+        x = ~date,
         y = ~hospitalizedCurrently,
-        color = I("darkblue"),
+        color = I("orange"),
         name = "Hospitalized",
         type = "bar",
         yaxis = "y2"
@@ -415,15 +424,24 @@ server <- function(input, output, session) {
       add_trace(
         x = ~date,
         y = ~positiveIncrease,
-        color = I("dimgray"),
+        color = I("gray"),
         name = "Positive",
         type = "bar",
         yaxis = "y3"
       ) %>%
       add_trace(
         x = ~date,
-        y = ~ positiveIncrease / totalTestResultsIncrease,
+        y = ~ rollmean(x = positiveIncrease, k = 7, fill = NA),
         color = I("black"),
+        name = "7-Day Positive",
+        type = "scatter",
+        mode = "lines",
+        yaxis = "y3"
+      ) %>%
+      add_trace(
+        x = ~date,
+        y = ~ rollmean(x = positiveIncrease, k = 7, fill = NA) / rollmean(x = totalTestResultsIncrease, k = 7, fill = NA),
+        color = I("dimgray"),
         name = "% Positive",
         type = "scatter",
         mode = "lines",
@@ -471,14 +489,23 @@ server <- function(input, output, session) {
       plot_ly(
         x = ~date,
         y = ~deathIncrease,
-        color = I("darkred"),
+        color = I("red"),
         name = "Deaths",
         type = "bar"
       ) %>%
       add_trace(
         x = ~date,
+        y = ~ rollmean(x = deathIncrease, k = 7, fill = NA),
+        color = I("darkred"),
+        name = "7-Day Deaths",
+        type = "scatter",
+        mode = "lines",
+        yaxis = "y1"
+      ) %>%
+      add_trace(
+        x = ~date,
         y = ~hospitalizedCurrently,
-        color = I("darkblue"),
+        color = I("orange"),
         name = "Hospitalized",
         type = "bar",
         yaxis = "y2"
@@ -486,15 +513,24 @@ server <- function(input, output, session) {
       add_trace(
         x = ~date,
         y = ~positiveIncrease,
-        color = I("dimgray"),
+        color = I("gray"),
         name = "Positive",
         type = "bar",
         yaxis = "y3"
       ) %>%
       add_trace(
         x = ~date,
-        y = ~ positiveIncrease / totalTestResultsIncrease,
+        y = ~ rollmean(x = positiveIncrease, k = 7, fill = NA),
         color = I("black"),
+        name = "7-Day Positive",
+        type = "scatter",
+        mode = "lines",
+        yaxis = "y3"
+      ) %>%
+      add_trace(
+        x = ~date,
+        y = ~ rollmean(x = positiveIncrease, k = 7, fill = NA) / rollmean(x = totalTestResultsIncrease, k = 7, fill = NA),
+        color = I("dimgray"),
         name = "% Positive",
         type = "scatter",
         mode = "lines",
@@ -547,16 +583,34 @@ server <- function(input, output, session) {
       plot_ly(
         x = ~date,
         y = ~deathIncrease,
-        color = I("darkred"),
+        color = I("red"),
         name = "Deaths",
         type = "bar"
       ) %>%
       add_trace(
         x = ~date,
+        y = ~ rollmean(x = deathIncrease, k = 7, fill = NA),
+        color = I("darkred"),
+        name = "7-Day Deaths",
+        type = "scatter",
+        mode = "lines",
+        yaxis = "y1"
+      ) %>%
+      add_trace(
+        x = ~date,
         y = ~positiveIncrease,
-        color = I("dimgray"),
+        color = I("gray"),
         name = "Cases",
         type = "bar",
+        yaxis = "y2"
+      ) %>%
+      add_trace(
+        x = ~date,
+        y = ~ rollmean(x = positiveIncrease, k = 7, fill = NA),
+        color = I("black"),
+        name = "7-Day Cases",
+        type = "scatter",
+        mode = "lines",
         yaxis = "y2"
       ) %>%
       subplot(
