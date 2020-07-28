@@ -416,9 +416,28 @@ server <- function(input, output, session) {
       add_trace(
         x = ~date,
         y = ~hospitalizedCurrently,
-        color = I("orange"),
+        color = I("cornflowerblue"),
         name = "Hospitalized",
-        type = "bar",
+        type = "scatter",
+        mode = "lines",
+        yaxis = "y2"
+      ) %>%
+      add_trace(
+        x = ~date,
+        y = ~inIcuCurrently,
+        color = I("orange"),
+        name = "ICU",
+        type = "scatter",
+        mode = "lines",
+        yaxis = "y2"
+      ) %>%
+      add_trace(
+        x = ~date,
+        y = ~onVentilatorCurrently,
+        color = I("orangered"),
+        name = "Ventilator",
+        type = "scatter",
+        mode = "lines",
         yaxis = "y2"
       ) %>%
       add_trace(
@@ -505,9 +524,28 @@ server <- function(input, output, session) {
       add_trace(
         x = ~date,
         y = ~hospitalizedCurrently,
-        color = I("orange"),
+        color = I("cornflowerblue"),
         name = "Hospitalized",
-        type = "bar",
+        type = "scatter",
+        mode = "lines",
+        yaxis = "y2"
+      ) %>%
+      add_trace(
+        x = ~date,
+        y = ~inIcuCurrently,
+        color = I("orange"),
+        name = "ICU",
+        type = "scatter",
+        mode = "lines",
+        yaxis = "y2"
+      ) %>%
+      add_trace(
+        x = ~date,
+        y = ~onVentilatorCurrently,
+        color = I("orangered"),
+        name = "Ventilator",
+        type = "scatter",
+        mode = "lines",
         yaxis = "y2"
       ) %>%
       add_trace(
