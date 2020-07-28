@@ -450,6 +450,15 @@ server <- function(input, output, session) {
       ) %>%
       add_trace(
         x = ~date,
+        y = ~ positiveIncrease / totalTestResultsIncrease,
+        color = I("lightgray"),
+        name = "% Positive",
+        type = "scatter",
+        mode = "lines",
+        yaxis = "y4"
+      ) %>%
+      add_trace(
+        x = ~date,
         y = ~ rollmean(x = positiveIncrease, k = 7, fill = NA),
         color = I("black"),
         name = "7-Day Positive",
@@ -461,7 +470,7 @@ server <- function(input, output, session) {
         x = ~date,
         y = ~ rollmean(x = positiveIncrease, k = 7, fill = NA) / rollmean(x = totalTestResultsIncrease, k = 7, fill = NA),
         color = I("dimgray"),
-        name = "% Positive",
+        name = "7-Day % Positive",
         type = "scatter",
         mode = "lines",
         yaxis = "y4"
@@ -567,9 +576,18 @@ server <- function(input, output, session) {
       ) %>%
       add_trace(
         x = ~date,
+        y = ~ positiveIncrease / totalTestResultsIncrease,
+        color = I("lightgray"),
+        name = "% Positive",
+        type = "scatter",
+        mode = "lines",
+        yaxis = "y4"
+      ) %>%
+      add_trace(
+        x = ~date,
         y = ~ rollmean(x = positiveIncrease, k = 7, fill = NA) / rollmean(x = totalTestResultsIncrease, k = 7, fill = NA),
         color = I("dimgray"),
-        name = "% Positive",
+        name = "7-Day % Positive",
         type = "scatter",
         mode = "lines",
         yaxis = "y4"
