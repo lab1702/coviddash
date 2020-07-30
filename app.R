@@ -183,18 +183,24 @@ ui <- dashboardPage(
       ),
       tabItem(
         tabName = "national_charts_tab",
-        box(plotlyOutput("national_cases_chart", height = 800), status = "warning"),
-        box(plotlyOutput("national_deaths_chart", height = 800), status = "danger")
+        box(plotlyOutput("national_cases_chart"), status = "warning"),
+        box(plotlyOutput("national_deaths_chart"), status = "danger"),
+        box(plotlyOutput("national_cases_chart2"), status = "warning"),
+        box(plotlyOutput("national_deaths_chart2"), status = "danger")
       ),
       tabItem(
         tabName = "states_charts_tab",
-        box(plotlyOutput("states_cases_chart", height = 800), status = "warning"),
-        box(plotlyOutput("states_deaths_chart", height = 800), status = "danger")
+        box(plotlyOutput("states_cases_chart"), status = "warning"),
+        box(plotlyOutput("states_deaths_chart"), status = "danger"),
+        box(plotlyOutput("states_cases_chart2"), status = "warning"),
+        box(plotlyOutput("states_deaths_chart2"), status = "danger")
       ),
       tabItem(
         tabName = "county_charts_tab",
-        box(plotlyOutput("county_cases_chart", height = 800), status = "warning"),
-        box(plotlyOutput("county_deaths_chart", height = 800), status = "danger")
+        box(plotlyOutput("county_cases_chart"), status = "warning"),
+        box(plotlyOutput("county_deaths_chart"), status = "danger"),
+        box(plotlyOutput("county_cases_chart2"), status = "warning"),
+        box(plotlyOutput("county_deaths_chart2"), status = "danger")
       ),
       tabItem(
         tabName = "us_overlay_tab",
@@ -311,7 +317,24 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
+        yaxis = list(title = "Positive Tests"),
+        xaxis = list(title = "Date"),
         title = list(text = "National Positive Tests", x = 0)
+      )
+  })
+
+  output$national_cases_chart2 <- renderPlotly({
+    us_daily %>%
+      plot_ly(
+        x = ~date,
+        y = ~ rollmean(x = positiveIncrease, k = 7, fill = NA),
+        type = "scatter",
+        mode = "lines"
+      ) %>%
+      layout(
+        yaxis = list(title = "7-Day Average Positive Tests"),
+        xaxis = list(title = "Date"),
+        title = list(text = "7-Day Average National Positive Tests", x = 0)
       )
   })
 
@@ -324,7 +347,24 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
+        yaxis = list(title = "Deaths"),
+        xaxis = list(title = "Date"),
         title = list(text = "National Deaths", x = 0)
+      )
+  })
+
+  output$national_deaths_chart2 <- renderPlotly({
+    us_daily %>%
+      plot_ly(
+        x = ~date,
+        y = ~ rollmean(x = deathIncrease, k = 7, fill = NA),
+        type = "scatter",
+        mode = "lines"
+      ) %>%
+      layout(
+        yaxis = list(title = "7-Day Average Deaths"),
+        xaxis = list(title = "Date"),
+        title = list(text = "7-Day Average National Deaths", x = 0)
       )
   })
 
@@ -339,7 +379,30 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
+        yaxis = list(title = "Positive Tests"),
+        xaxis = list(title = "Date"),
         title = list(text = paste("State Positive Tests", ifelse(input$top10, "[Top 10]", "[All]")), x = 0)
+      )
+  })
+
+  output$states_cases_chart2 <- renderPlotly({
+    states_daily %>%
+      filter(!input$top10 | (input$top10 & state %in% top10_states)) %>%
+      group_by(state) %>%
+      arrange(date) %>%
+      mutate(positiveIncrease = rollmean(x = positiveIncrease, k = 7, fill = NA)) %>%
+      ungroup() %>%
+      plot_ly(
+        x = ~date,
+        y = ~positiveIncrease,
+        color = ~state,
+        type = "scatter",
+        mode = "lines"
+      ) %>%
+      layout(
+        yaxis = list(title = "7-Day Average Positive Tests"),
+        xaxis = list(title = "Date"),
+        title = list(text = paste("7-Day Average State Positive Tests", ifelse(input$top10, "[Top 10]", "[All]")), x = 0)
       )
   })
 
@@ -354,7 +417,30 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
+        yaxis = list(title = "Deaths"),
+        xaxis = list(title = "Date"),
         title = list(text = paste("State Deaths", ifelse(input$top10, "[Top 10]", "[All]")), x = 0)
+      )
+  })
+
+  output$states_deaths_chart2 <- renderPlotly({
+    states_daily %>%
+      filter(!input$top10 | (input$top10 & state %in% top10_states)) %>%
+      group_by(state) %>%
+      arrange(date) %>%
+      mutate(deathIncrease = rollmean(x = deathIncrease, k = 7, fill = NA)) %>%
+      ungroup() %>%
+      plot_ly(
+        x = ~date,
+        y = ~deathIncrease,
+        color = ~state,
+        type = "scatter",
+        mode = "lines"
+      ) %>%
+      layout(
+        yaxis = list(title = "7-Day Average Deaths"),
+        xaxis = list(title = "Date"),
+        title = list(text = paste("7-Day Average State Deaths", ifelse(input$top10, "[Top 10]", "[All]")), x = 0)
       )
   })
 
@@ -372,7 +458,33 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
+        yaxis = list(title = "Cases"),
+        xaxis = list(title = "Date"),
         title = list(text = paste(input$state3d_select, "Cases by County", ifelse(input$top10, "[Top 10]", "[All]")), x = 0)
+      )
+  })
+
+  output$county_cases_chart2 <- renderPlotly({
+    raw_county_data %>%
+      filter(
+        state == input$state3d_select,
+        !input$top10 | (input$top10 & county %in% top10_counties(input$state3d_select))
+      ) %>%
+      group_by(county) %>%
+      arrange(date) %>%
+      mutate(cases = rollmean(x = c(min(cases), diff(cases)), k = 7, fill = NA)) %>%
+      ungroup() %>%
+      plot_ly(
+        x = ~date,
+        y = ~cases,
+        color = ~county,
+        type = "scatter",
+        mode = "lines"
+      ) %>%
+      layout(
+        yaxis = list(title = "7-Day Average Cases"),
+        xaxis = list(title = "Date"),
+        title = list(text = paste("7-Day Average", input$state3d_select, "Cases by County", ifelse(input$top10, "[Top 10]", "[All]")), x = 0)
       )
   })
 
@@ -390,7 +502,33 @@ server <- function(input, output, session) {
         mode = "lines"
       ) %>%
       layout(
+        yaxis = list(title = "Deaths"),
+        xaxis = list(title = "Date"),
         title = list(text = paste(input$state3d_select, "Deaths by County", ifelse(input$top10, "[Top 10]", "[All]")), x = 0)
+      )
+  })
+
+  output$county_deaths_chart2 <- renderPlotly({
+    raw_county_data %>%
+      filter(
+        state == input$state3d_select,
+        !input$top10 | (input$top10 & county %in% top10_counties(input$state3d_select))
+      ) %>%
+      group_by(county) %>%
+      arrange(date) %>%
+      mutate(deaths = rollmean(x = c(min(deaths), diff(deaths)), k = 7, fill = NA)) %>%
+      ungroup() %>%
+      plot_ly(
+        x = ~date,
+        y = ~deaths,
+        color = ~county,
+        type = "scatter",
+        mode = "lines"
+      ) %>%
+      layout(
+        yaxis = list(title = "7-Day Average Deaths"),
+        xaxis = list(title = "Date"),
+        title = list(text = paste("7-Day Average", input$state3d_select, "Deaths by County", ifelse(input$top10, "[Top 10]", "[All]")), x = 0)
       )
   })
 
