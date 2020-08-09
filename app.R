@@ -8,6 +8,7 @@ library(shinydashboard)
 library(plotly)
 library(rjson)
 
+# plot_ly(x = states_current$death / states_current$positive, y = states_current$death / states_current$population, text = states_current$state, type = "scatter", mode = "text") %>% layout(xaxis = list(tickformat = "p"), yaxis = list(tickformat = "p"))
 
 single_state_name_to_code <- function(s) {
   ifelse(
@@ -18,6 +19,30 @@ single_state_name_to_code <- function(s) {
 }
 
 state_name_to_code <- Vectorize(single_state_name_to_code)
+
+
+county_data <- fromJSON(file = "geojson-counties-fips.json")
+
+census_state <- read_csv("nst-est2019-alldata.csv") %>%
+  filter(
+    STATE != "00"
+  ) %>%
+  transmute(
+    fips = STATE,
+    population = POPESTIMATE2019,
+    yearlydeaths = DEATHS2019
+  )
+
+census_county <- read_csv("co-est2019-alldata.csv") %>%
+  filter(
+    STATE != "00",
+    COUNTY != "000"
+  ) %>%
+  transmute(
+    fips = paste0(STATE, COUNTY),
+    population = POPESTIMATE2019,
+    yearlydeaths = DEATHS2019
+  )
 
 
 api_info <- read_csv("https://covidtracking.com/api/v1/status.csv")
@@ -33,20 +58,21 @@ states_info <- read_csv("https://covidtracking.com/api/v1/states/info.csv") %>%
 
 states_current <- read_csv("https://covidtracking.com/api/v1/states/current.csv") %>%
   filter(state %in% c("DC", state.abb)) %>%
-  mutate(date = ymd(date))
+  mutate(date = ymd(date)) %>%
+  inner_join(census_state)
 
 states_daily <- read_csv("https://covidtracking.com/api/v1/states/daily.csv") %>%
   filter(state %in% c("DC", state.abb)) %>%
-  mutate(date = ymd(date))
+  mutate(date = ymd(date)) %>%
+  inner_join(census_state)
 
 raw_county_data <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>%
   filter(
     state %in% c(state.name, "District of Columbia"),
     county != "Unknown",
     !is.na(fips)
-  )
-
-county_data <- fromJSON(file = "geojson-counties-fips.json")
+  ) %>%
+  inner_join(census_county)
 
 states_grade <- states_current %>%
   transmute(
@@ -114,6 +140,11 @@ ui <- dashboardPage(
         menuSubItem(text = "All Counties Cases", tabName = "county_cases_hotspots_tab"),
         menuSubItem(text = "All Counties Deaths", tabName = "county_deaths_hotspots_tab"),
         em("Please note: County maps load slow")
+      ),
+      menuItem(
+        text = "Deaths per Capita",
+        menuSubItem(text = "Ranked", tabName = "cap_death_tab"),
+        menuSubItem(text = "vs. Mortality", tabName = "cap_dvsc_tab")
       )
     ),
     hr(),
@@ -157,6 +188,10 @@ ui <- dashboardPage(
         box(
           HTML("County level data is downloaded from <A HREF='https://github.com/nytimes/covid-19-data', TARGET='_blank'>https://github.com/nytimes/covid-19-data</A>"),
           title = "County Data Source"
+        ),
+        box(
+          HTML("State and county population data is downloaded from <A HREF='https://census.gov' TARGET='_blank'>census.gov</A>"),
+          title = "Population Data Source"
         ),
         box(
           HTML("The inspiration for the 3D charts came from the <A HREF='https://www.facebook.com/groups/158015618707622', TARGET='_blank'>Dr. Frank Models</A> Facebook group."),
@@ -257,6 +292,16 @@ ui <- dashboardPage(
         tabName = "county_3d_tab",
         box(plotlyOutput("county_3d_chart1", height = 800), status = "warning"),
         box(plotlyOutput("county_3d_chart2", height = 800), status = "danger")
+      ),
+      tabItem(
+        tabName = "cap_death_tab",
+        box(plotlyOutput("cap_death_state_chart"), width = 12, status = "danger"),
+        box(plotlyOutput("cap_death_county_chart"), width = 12, status = "danger"),
+      ),
+      tabItem(
+        tabName = "cap_dvsc_tab",
+        box(plotlyOutput("cap_dvsc_state_chart", height = 800)),
+        box(plotlyOutput("cap_dvsc_county_chart", height = 800)),
       )
     )
   )
@@ -1161,6 +1206,102 @@ server <- function(input, output, session) {
       layout(
         title = list(text = "Average Daily Deaths by County, Last 7 Days", x = 0),
         geo = list(scope = "usa", visible = FALSE)
+      )
+  })
+
+  output$cap_death_state_chart <- renderPlotly({
+    states_current %>%
+      plot_ly(
+        x = ~ reorder(state, -death / population),
+        y = ~ death / population,
+        color = ~ state %in% state_name_to_code(input$state3d_select),
+        colors = c("dimgray", "red"),
+        showlegend = FALSE,
+        type = "bar"
+      ) %>%
+      layout(
+        xaxis = list(title = "State"),
+        yaxis = list(title = "Deaths per Capita", tickformat = ".2%"),
+        title = list(text = "Deaths per Capita by State", x = 0)
+      )
+  })
+
+  output$cap_death_county_chart <- renderPlotly({
+    raw_county_data %>%
+      filter(
+        state %in% input$state3d_select
+      ) %>%
+      group_by(
+        county,
+        fips
+      ) %>%
+      arrange(
+        desc(date)
+      ) %>%
+      slice(1) %>%
+      ungroup() %>%
+      plot_ly(
+        x = ~ reorder(county, -deaths / population),
+        y = ~ deaths / population,
+        color = ~ county %in% input$county3d_select,
+        colors = c("dimgray", "red"),
+        showlegend = FALSE,
+        type = "bar"
+      ) %>%
+      layout(
+        xaxis = list(title = "County"),
+        yaxis = list(title = "Deaths per Capita", tickformat = ".2%"),
+        title = list(text = "Deaths per Capita by County", x = 0)
+      )
+  })
+
+  output$cap_dvsc_state_chart <- renderPlotly({
+    states_current %>%
+      plot_ly(
+        x = ~ death / positive,
+        y = ~ death / population,
+        color = ~ state %in% state_name_to_code(input$state3d_select),
+        colors = c("dimgray", "red"),
+        showlegend = FALSE,
+        text = ~state,
+        type = "scatter",
+        mode = "text"
+      ) %>%
+      layout(
+        xaxis = list(title = "Deaths per Positive Tests", tickformat = ".2%"),
+        yaxis = list(title = "Deaths per Capita", tickformat = ".2%"),
+        title = list(text = "Deaths per Capita vs. Deaths per Positive Tests", x = 0)
+      )
+  })
+
+  output$cap_dvsc_county_chart <- renderPlotly({
+    raw_county_data %>%
+      filter(
+        state %in% input$state3d_select
+      ) %>%
+      group_by(
+        county,
+        fips
+      ) %>%
+      arrange(
+        desc(date)
+      ) %>%
+      slice(1) %>%
+      ungroup() %>%
+      plot_ly(
+        x = ~ deaths / cases,
+        y = ~ deaths / population,
+        color = ~ state %in% input$state3d_select & county %in% input$county3d_select,
+        colors = c("dimgray", "red"),
+        showlegend = FALSE,
+        text = ~county,
+        type = "scatter",
+        mode = "text"
+      ) %>%
+      layout(
+        xaxis = list(title = "Deaths per Cases", tickformat = ".2%"),
+        yaxis = list(title = "Deaths per Capita", tickformat = ".2%"),
+        title = list(text = paste(input$state3d_select, "Deaths per Capita vs. Deaths per Cases"), x = 0)
       )
   })
 
