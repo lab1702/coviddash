@@ -8,7 +8,6 @@ library(shinydashboard)
 library(plotly)
 library(rjson)
 
-# plot_ly(x = states_current$death / states_current$positive, y = states_current$death / states_current$population, text = states_current$state, type = "scatter", mode = "text") %>% layout(xaxis = list(tickformat = "p"), yaxis = list(tickformat = "p"))
 
 single_state_name_to_code <- function(s) {
   ifelse(
@@ -192,10 +191,6 @@ ui <- dashboardPage(
         box(
           HTML("State and county population data is downloaded from <A HREF='https://census.gov' TARGET='_blank'>census.gov</A>"),
           title = "Population Data Source"
-        ),
-        box(
-          HTML("The inspiration for the 3D charts came from the <A HREF='https://www.facebook.com/groups/158015618707622', TARGET='_blank'>Dr. Frank Models</A> Facebook group."),
-          title = "3D Charts"
         ),
         box(
           HTML("A simplified dashboard for mobile devices is available at: <A HREF='https://lab1702.shinyapps.io/covidmobile/' TARGET='_blank'>https://lab1702.shinyapps.io/covidmobile/</A>"),
