@@ -1246,7 +1246,7 @@ server <- function(input, output, session) {
       layout(
         xaxis = list(title = "County"),
         yaxis = list(title = "Deaths per Capita", tickformat = ".2%"),
-        title = list(text = "Deaths per Capita by County", x = 0)
+        title = list(text = paste(input$state3d_select, "Deaths per Capita by County"), x = 0)
       )
   })
 
