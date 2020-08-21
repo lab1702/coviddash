@@ -44,23 +44,23 @@ census_county <- read_csv("co-est2019-alldata.csv") %>%
   )
 
 
-api_info <- read_csv("https://covidtracking.com/api/v1/status.csv")
+api_info <- read_csv("https://api.covidtracking.com/v1/status.csv")
 
-us_current <- read_csv("https://covidtracking.com/api/v1/us/current.csv") %>%
+us_current <- read_csv("https://api.covidtracking.com/v1/us/current.csv") %>%
   mutate(date = ymd(date))
 
-us_daily <- read_csv("https://covidtracking.com/api/v1/us/daily.csv") %>%
+us_daily <- read_csv("https://api.covidtracking.com/v1/us/daily.csv") %>%
   mutate(date = ymd(date))
 
-states_info <- read_csv("https://covidtracking.com/api/v1/states/info.csv") %>%
+states_info <- read_csv("https://api.covidtracking.com/v1/states/info.csv") %>%
   filter(state %in% c("DC", state.abb))
 
-states_current <- read_csv("https://covidtracking.com/api/v1/states/current.csv") %>%
+states_current <- read_csv("https://api.covidtracking.com/v1/states/current.csv") %>%
   filter(state %in% c("DC", state.abb)) %>%
   mutate(date = ymd(date)) %>%
   inner_join(census_state)
 
-states_daily <- read_csv("https://covidtracking.com/api/v1/states/daily.csv") %>%
+states_daily <- read_csv("https://api.covidtracking.com/v1/states/daily.csv") %>%
   filter(state %in% c("DC", state.abb)) %>%
   mutate(date = ymd(date)) %>%
   inner_join(census_state)
@@ -181,7 +181,7 @@ ui <- dashboardPage(
           title = "Data Quality, according to covidtracking.com"
         ),
         box(
-          HTML("National and State data is downloaded from <A HREF='https://covidtracking.com/api', TARGET='_blank'>https://covidtracking.com/api</A>"),
+          HTML("National and State data is downloaded from <A HREF='https://api.covidtracking.com', TARGET='_blank'>https://api.covidtracking.com</A>"),
           title = "National and State Data Source"
         ),
         box(
@@ -318,7 +318,7 @@ server <- function(input, output, session) {
         type = "pie",
         labels = ~state,
         values = ~death,
-        pull = ~ ifelse(state == state_name_to_code(input$state3d_select), 0.1, 0),
+        pull = ~ ifelse(state %in% state_name_to_code(input$state3d_select), 0.1, 0),
         textinfo = "label+value+percent",
         textposition = "inside",
         showlegend = FALSE
@@ -339,6 +339,7 @@ server <- function(input, output, session) {
         type = "pie",
         labels = ~county,
         values = ~deaths,
+        pull = ~ ifelse(county %in% input$county3d_select, 0.1, 0),
         textinfo = "label+value+percent",
         textposition = "inside",
         showlegend = FALSE
@@ -578,7 +579,7 @@ server <- function(input, output, session) {
       plot_ly(
         x = ~date,
         y = ~deathIncrease,
-        color = I("red"),
+        color = I("pink"),
         name = "Deaths",
         type = "bar"
       ) %>%
@@ -695,7 +696,7 @@ server <- function(input, output, session) {
       plot_ly(
         x = ~date,
         y = ~deathIncrease,
-        color = I("red"),
+        color = I("pink"),
         name = "Deaths",
         type = "bar"
       ) %>%
@@ -817,7 +818,7 @@ server <- function(input, output, session) {
       plot_ly(
         x = ~date,
         y = ~deathIncrease,
-        color = I("red"),
+        color = I("pink"),
         name = "Deaths",
         type = "bar"
       ) %>%
@@ -1208,16 +1209,16 @@ server <- function(input, output, session) {
     states_current %>%
       plot_ly(
         x = ~ reorder(state, -death / population),
-        y = ~ death / population,
+        y = ~ 1000000 * death / population,
         color = ~ state %in% state_name_to_code(input$state3d_select),
-        colors = c("dimgray", "red"),
+        colors = c("dimgray", "darkred"),
         showlegend = FALSE,
         type = "bar"
       ) %>%
       layout(
         xaxis = list(title = "State"),
-        yaxis = list(title = "Deaths per Capita", tickformat = ".2%"),
-        title = list(text = "Deaths per Capita by State", x = 0)
+        yaxis = list(title = "Deaths per Million People"),
+        title = list(text = "Deaths per Million People by State", x = 0)
       )
   })
 
@@ -1237,16 +1238,16 @@ server <- function(input, output, session) {
       ungroup() %>%
       plot_ly(
         x = ~ reorder(county, -deaths / population),
-        y = ~ deaths / population,
+        y = ~ 1000000 * deaths / population,
         color = ~ county %in% input$county3d_select,
-        colors = c("dimgray", "red"),
+        colors = c("dimgray", "darkred"),
         showlegend = FALSE,
         type = "bar"
       ) %>%
       layout(
         xaxis = list(title = "County"),
-        yaxis = list(title = "Deaths per Capita", tickformat = ".2%"),
-        title = list(text = paste(input$state3d_select, "Deaths per Capita by County"), x = 0)
+        yaxis = list(title = "Deaths per Million People"),
+        title = list(text = paste(input$state3d_select, "Deaths per Million People by County"), x = 0)
       )
   })
 
@@ -1254,9 +1255,9 @@ server <- function(input, output, session) {
     states_current %>%
       plot_ly(
         x = ~ death / positive,
-        y = ~ death / population,
+        y = ~ 1000000 * death / population,
         color = ~ state %in% state_name_to_code(input$state3d_select),
-        colors = c("dimgray", "red"),
+        colors = c("dimgray", "darkred"),
         showlegend = FALSE,
         text = ~state,
         type = "scatter",
@@ -1264,8 +1265,8 @@ server <- function(input, output, session) {
       ) %>%
       layout(
         xaxis = list(title = "Deaths per Positive Tests", tickformat = ".2%"),
-        yaxis = list(title = "Deaths per Capita", tickformat = ".2%"),
-        title = list(text = "Deaths per Capita vs. Deaths per Positive Tests", x = 0)
+        yaxis = list(title = "Deaths per Million People"),
+        title = list(text = "Deaths per Million People vs. Deaths per Positive Tests", x = 0)
       )
   })
 
@@ -1285,9 +1286,9 @@ server <- function(input, output, session) {
       ungroup() %>%
       plot_ly(
         x = ~ deaths / cases,
-        y = ~ deaths / population,
+        y = ~ 1000000 * deaths / population,
         color = ~ state %in% input$state3d_select & county %in% input$county3d_select,
-        colors = c("dimgray", "red"),
+        colors = c("dimgray", "darkred"),
         showlegend = FALSE,
         text = ~county,
         type = "scatter",
@@ -1295,8 +1296,8 @@ server <- function(input, output, session) {
       ) %>%
       layout(
         xaxis = list(title = "Deaths per Cases", tickformat = ".2%"),
-        yaxis = list(title = "Deaths per Capita", tickformat = ".2%"),
-        title = list(text = paste(input$state3d_select, "Deaths per Capita vs. Deaths per Cases"), x = 0)
+        yaxis = list(title = "Deaths per Million People"),
+        title = list(text = paste(input$state3d_select, "Deaths per Million People vs. Deaths per Cases"), x = 0)
       )
   })
 
