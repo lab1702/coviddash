@@ -678,7 +678,7 @@ server <- function(input, output, session) {
         yaxis4 = list(
           title = "% Positive",
           fixedrange = TRUE,
-          tickformat = "%"
+          tickformat = ".2%"
         ),
         title = list(
           text = "National Daily Numbers",
@@ -795,7 +795,7 @@ server <- function(input, output, session) {
         yaxis4 = list(
           title = "% Positive",
           fixedrange = TRUE,
-          tickformat = "%"
+          tickformat = ".2%"
         ),
         title = list(
           text = paste(input$state3d_select, "Daily Numbers"),
