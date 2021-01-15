@@ -6,7 +6,7 @@ library(zoo)
 library(shiny)
 library(shinydashboard)
 library(plotly)
-library(rjson)
+library(jsonlite)
 
 
 single_state_name_to_code <- function(s) {
@@ -20,7 +20,7 @@ single_state_name_to_code <- function(s) {
 state_name_to_code <- Vectorize(single_state_name_to_code)
 
 
-county_data <- fromJSON(file = "geojson-counties-fips.json")
+county_data <- fromJSON(txt = "geojson-counties-fips.json")
 
 census_state <- read_csv("nst-est2019-alldata.csv") %>%
   filter(
@@ -109,7 +109,6 @@ ui <- dashboardPage(
   sidebar = dashboardSidebar(
     sidebarMenu(
       menuItem(text = "About", tabName = "about_tab"),
-      menuItem(text = "Summary Tables", tabName = "data_tables_tab"),
       menuItem(text = "Summary Charts", tabName = "overall_summary_tab"),
       menuItem(
         text = "Daily Charts",
@@ -196,11 +195,6 @@ ui <- dashboardPage(
           HTML("The source code for this R/Shiny app is available at <A HREF='https://github.com/lab1702/coviddash', TARGET='_blank'>https://github.com/lab1702/coviddash</A>"),
           title = "Source Code"
         )
-      ),
-      tabItem(
-        tabName = "data_tables_tab",
-        box(tableOutput("data_us"), title = "National Data Table"),
-        box(tableOutput("data_states"), title = "State Data Table")
       ),
       tabItem(
         tabName = "overall_summary_tab",
@@ -1319,30 +1313,12 @@ server <- function(input, output, session) {
   })
 
   output$data_us <- renderTable({
-    us_current %>%
-      transmute(
-        Tests = scales::comma(totalTestResults, accuracy = 1),
-        Positive = scales::comma(positive, accuracy = 1),
-        Deaths = scales::comma(death, accuracy = 1),
-        Recovered = scales::comma(recovered, accuracy = 1),
-        lastModified = as.character(lastModified),
-        Collected = format(date, "%A, %B %d, %Y")
-      )
+    us_current
   })
 
   output$data_states <- renderTable({
     states_current %>%
-      transmute(
-        State = state,
-        Tests = scales::comma(totalTestResults, accuracy = 1),
-        Positive = scales::comma(positive, accuracy = 1),
-        Deaths = scales::comma(death, accuracy = 1),
-        Recovered = scales::comma(recovered, accuracy = 1),
-        lastUpdateEt = as.character(lastUpdateEt),
-        Collected = format(date, "%A, %B %d, %Y"),
-        Quality = dataQualityGrade
-      ) %>%
-      arrange(State)
+      arrange(state)
   })
 }
 
